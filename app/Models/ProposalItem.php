@@ -24,10 +24,10 @@ class ProposalItem extends BaseModel
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
-            'unit_price' => 'string',
-            'discount_amount' => 'string',
-            'total_price' => 'string',
+            'quantity' => 'decimal:2',
+            'unit_price' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'total_price' => 'decimal:2',
             'is_recurring' => 'boolean',
         ];
     }

@@ -33,6 +33,7 @@ return new class extends Migration
 
             $table->index(['pipeline_id', 'stage_id', 'status']);
             $table->index(['owner_id', 'status', 'expected_close_date']);
+            $table->index('status');
         });
     }
 

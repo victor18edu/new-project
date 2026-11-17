@@ -4,7 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\V1\StoreUserRequest;
 use App\Http\Requests\V1\UpdateUserRequest;
+use App\Models\Activity;
+use App\Models\Company;
+use App\Models\Opportunity;
+use App\Models\OpportunityStageHistory;
+use App\Models\Proposal;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -90,7 +96,44 @@ class UserController extends BaseApiController
 
         Gate::authorize('delete', $user);
 
-        $user->delete();
+        $dependencies = [];
+
+        if (Company::withTrashed()->where('owner_id', $id)->exists()) {
+            $dependencies[] = 'empresas';
+        }
+
+        if (Opportunity::withTrashed()->where('owner_id', $id)->exists()) {
+            $dependencies[] = 'oportunidades';
+        }
+
+        if (Proposal::withTrashed()->where('owner_id', $id)->exists()) {
+            $dependencies[] = 'propostas';
+        }
+
+        if (Activity::withTrashed()->where('assigned_to', $id)->exists()
+            || Activity::withTrashed()->where('created_by', $id)->exists()) {
+            $dependencies[] = 'atividades';
+        }
+
+        if (OpportunityStageHistory::where('user_id', $id)->exists()) {
+            $dependencies[] = 'históricos de estágio';
+        }
+
+        if ($dependencies !== []) {
+            return $this->errorResponse(
+                message: 'Não é possível remover este usuário porque existem registros vinculados: ' . implode(', ', $dependencies) . '.',
+                status: 409
+            );
+        }
+
+        try {
+            $user->delete();
+        } catch (QueryException) {
+            return $this->errorResponse(
+                message: 'Não é possível remover este usuário porque existem registros vinculados.',
+                status: 409
+            );
+        }
 
         return $this->successResponse(
             message: 'Usuário removido com sucesso.',

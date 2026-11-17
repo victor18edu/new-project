@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('pipeline_id')->constrained('pipelines')->onDelete('cascade');
             $table->string('name', 100);
             $table->string('slug', 120);
-            $table->integer('order_index');
+            $table->integer('order_index')->default(0);
             $table->unsignedTinyInteger('probability_percent')->default(0);
             $table->boolean('is_won_stage')->default(false);
             $table->boolean('is_lost_stage')->default(false);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -22,8 +23,22 @@ class Service extends BaseModel
     protected function casts(): array
     {
         return [
-            'base_price' => 'string',
+            'base_price' => 'decimal:2',
+            'pricing_type' => 'string',
+            'is_active' => 'boolean',
         ];
+    }
+
+    protected function pricingType(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => match ($value) {
+                'fixo' => 'one_off',
+                'mensal' => 'monthly',
+                'por hora', 'por_hora', 'horario' => 'hourly',
+                default => $value,
+            },
+        );
     }
 
     public function category(): BelongsTo

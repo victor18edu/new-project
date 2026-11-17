@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
@@ -14,7 +15,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Pipeline extends BaseModel
 {
+    use HasFactory;
+
     protected $table = 'pipelines';
+
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+            'is_active' => 'boolean',
+        ];
+    }
 
     public function stages(): HasMany
     {

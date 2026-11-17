@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'name',
@@ -13,9 +12,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class LostReason extends BaseModel
 {
-    use SoftDeletes;
-
     protected $table = 'lost_reasons';
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 
     public function opportunities(): HasMany
     {

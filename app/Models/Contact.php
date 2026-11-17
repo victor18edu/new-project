@@ -20,16 +20,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Contact extends BaseModel
 {
+    use SoftDeletes;
+
     protected $table = 'contacts';
+
+    protected function casts(): array
+    {
+        return [
+            'is_decision_maker' => 'boolean',
+            'is_primary' => 'boolean',
+        ];
+    }
 
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id');
-    }
-
-    public function primaryOpportunity(): BelongsTo
-    {
-        return $this->belongsTo(Opportunity::class, 'primary_contact_id');
     }
 
     public function activities(): HasMany
@@ -40,5 +45,10 @@ class Contact extends BaseModel
     public function opportunities(): HasMany
     {
         return $this->hasMany(Opportunity::class, 'primary_contact_id');
+    }
+
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class, 'contact_id');
     }
 }

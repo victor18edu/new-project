@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[Fillable([
     'user_id',
@@ -12,13 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'event',
     'old_values',
     'new_values',
-    'url',
     'ip_address',
     'user_agent',
 ])]
 class AuditLog extends BaseModel
 {
     protected $table = 'audit_logs';
+
+    public const UPDATED_AT = null;
 
     protected function casts(): array
     {
@@ -32,5 +34,10 @@ class AuditLog extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function auditable(): MorphTo
+    {
+        return $this->morphTo();
     }
 }

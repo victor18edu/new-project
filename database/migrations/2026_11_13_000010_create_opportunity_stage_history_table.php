@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('to_stage_id')->constrained('pipeline_stages')->onDelete('restrict');
             $table->foreignId('user_id')->constrained('users')->onDelete('restrict');
             $table->unsignedInteger('duration_in_seconds')->nullable();
-            $table->timestamp('created_at')->useCurrent();
             $table->timestamps();
 
             $table->index('created_at');

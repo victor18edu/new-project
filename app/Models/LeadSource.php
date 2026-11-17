@@ -16,6 +16,13 @@ class LeadSource extends BaseModel
 {
     protected $table = 'lead_sources';
 
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
     public function companies(): HasMany
     {
         return $this->hasMany(Company::class, 'lead_source_id');

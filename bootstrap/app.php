@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        $middleware->redirectGuestsTo(fn () => '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -39,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Erro de validação.',
-                code: 422,
+                status: 422,
                 errors: $e->errors(),
             );
         });
@@ -53,7 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Não autenticado.',
-                code: 401,
+                status: 401,
             );
         });
 
@@ -66,7 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Não autenticado.',
-                code: 401,
+                status: 401,
             );
         });
 
@@ -79,7 +81,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Não autenticado.',
-                code: 401,
+                status: 401,
             );
         });
 
@@ -92,7 +94,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Não autorizado.',
-                code: 403,
+                status: 403,
             );
         });
 
@@ -105,7 +107,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Registro não encontrado.',
-                code: 404,
+                status: 404,
             );
         });
 
@@ -118,7 +120,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Endpoint não encontrado.',
-                code: 404,
+                status: 404,
             );
         });
 
@@ -131,7 +133,26 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: 'Método não permitido.',
-                code: 405,
+                status: 405,
+            );
+        });
+
+        $exceptions->render(function (HttpException $e, Request $request): ?JsonResponse {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return (new class {
+                use ApiResponseTrait;
+            })->errorResponse(
+                message: match ($e->getStatusCode()) {
+                    401 => 'Não autenticado.',
+                    403 => 'Não autorizado.',
+                    404 => 'Registro não encontrado.',
+                    405 => 'Método não permitido.',
+                    default => 'Erro na requisição.',
+                },
+                status: $e->getStatusCode(),
             );
         });
 
@@ -146,7 +167,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 use ApiResponseTrait;
             })->errorResponse(
                 message: $message,
-                code: 500,
+                status: 500,
             );
         });
     })->create();

@@ -23,7 +23,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Activity extends BaseModel
 {
+    use SoftDeletes;
+
     protected $table = 'activities';
+
+    protected function casts(): array
+    {
+        return [
+            'due_date' => 'datetime',
+            'completed_at' => 'datetime',
+            'status' => 'string',
+        ];
+    }
 
     public function activityType(): BelongsTo
     {

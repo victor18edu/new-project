@@ -27,7 +27,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Opportunity extends BaseModel
 {
+    use SoftDeletes;
+
     protected $table = 'opportunities';
+
+    protected function casts(): array
+    {
+        return [
+            'estimated_one_off_value' => 'decimal:2',
+            'estimated_recurring_value' => 'decimal:2',
+            'expected_close_date' => 'date',
+            'closed_at' => 'datetime',
+            'status' => 'string',
+        ];
+    }
 
     public function company(): BelongsTo
     {
@@ -67,5 +80,10 @@ class Opportunity extends BaseModel
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class, 'opportunity_id');
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(Activity::class, 'opportunity_id');
     }
 }

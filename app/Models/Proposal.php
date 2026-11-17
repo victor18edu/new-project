@@ -25,13 +25,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Proposal extends BaseModel
 {
+    use SoftDeletes;
+
     protected $table = 'proposals';
 
     protected function casts(): array
     {
         return [
-            'total_one_off' => 'string',
-            'total_recurring' => 'string',
+            'total_one_off' => 'decimal:2',
+            'total_recurring' => 'decimal:2',
+            'status' => 'string',
             'valid_until' => 'date',
             'sent_at' => 'datetime',
             'accepted_at' => 'datetime',

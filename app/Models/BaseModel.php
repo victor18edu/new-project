@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\AuditableTrait;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class BaseModel extends Model
 {
+    use AuditableTrait;
+
     /**
      * BaseModel serves as the shared Eloquent base for all CRM entities,
      * keeping table/fillable conventions centralized without imposing

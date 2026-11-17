@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -31,9 +32,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Company extends BaseModel
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'companies';
+
+    protected function casts(): array
+    {
+        return [
+            'is_mobile_responsive' => 'boolean',
+            'has_whatsapp_button' => 'boolean',
+            'has_active_ads' => 'boolean',
+        ];
+    }
 
     public function segment(): BelongsTo
     {

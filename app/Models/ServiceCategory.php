@@ -15,6 +15,13 @@ class ServiceCategory extends BaseModel
 {
     protected $table = 'service_categories';
 
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
     public function services(): HasMany
     {
         return $this->hasMany(Service::class, 'category_id');

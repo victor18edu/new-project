@@ -39,6 +39,9 @@ return new class extends Migration
             $table->index(['owner_id', 'status']);
             $table->index('temperature');
             $table->index('tax_id');
+            $table->index('city');
+            $table->index('state');
+            $table->index('status');
         });
     }
 

@@ -20,7 +20,6 @@ return new class extends Migration
             $table->enum('pricing_type', ['one_off', 'monthly', 'hourly'])->default('one_off');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

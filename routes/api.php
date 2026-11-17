@@ -1,6 +1,22 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ActivityController;
+use App\Http\Controllers\Api\V1\ActivityTypeController;
+use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\LeadSourceController;
+use App\Http\Controllers\Api\V1\LostReasonController;
+use App\Http\Controllers\Api\V1\OpportunityController;
+use App\Http\Controllers\Api\V1\OpportunityStageHistoryController;
+use App\Http\Controllers\Api\V1\PipelineController;
+use App\Http\Controllers\Api\V1\PipelineStageController;
+use App\Http\Controllers\Api\V1\ProposalController;
+use App\Http\Controllers\Api\V1\ProposalItemController;
+use App\Http\Controllers\Api\V1\SegmentController;
+use App\Http\Controllers\Api\V1\ServiceController;
+use App\Http\Controllers\Api\V1\ServiceCategoryController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +35,54 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', function (Request $request) {
             return $request->user();
         });
+
+        // CRUD - Activities
+        Route::apiResource('/activities', ActivityController::class);
+
+        // CRUD - Activity Types
+        Route::apiResource('/activity-types', ActivityTypeController::class);
+
+        // CRUD - Companies
+        Route::apiResource('/companies', CompanyController::class);
+
+        // CRUD - Contacts
+        Route::apiResource('/contacts', ContactController::class);
+
+        // CRUD - Lead Sources
+        Route::apiResource('/lead-sources', LeadSourceController::class);
+
+        // CRUD - Lost Reasons
+        Route::apiResource('/lost-reasons', LostReasonController::class);
+
+        // CRUD - Opportunities
+        Route::apiResource('/opportunities', OpportunityController::class);
+
+        // CRUD - Opportunity Stage Histories
+        Route::apiResource('/opportunity-stage-histories', OpportunityStageHistoryController::class);
+
+        // CRUD - Pipelines
+        Route::apiResource('/pipelines', PipelineController::class);
+
+        // CRUD - Pipeline Stages
+        Route::apiResource('/pipeline-stages', PipelineStageController::class);
+
+        // CRUD - Proposals
+        Route::apiResource('/proposals', ProposalController::class);
+
+        // CRUD - Proposal Items
+        Route::apiResource('/proposal-items', ProposalItemController::class);
+
+        // CRUD - Segments
+        Route::apiResource('/segments', SegmentController::class);
+
+        // CRUD - Services
+        Route::apiResource('/services', ServiceController::class);
+
+        // CRUD - Service Categories
+        Route::apiResource('/service-categories', ServiceCategoryController::class);
+
+        // CRUD - Users
+        Route::apiResource('/users', UserController::class);
     });
 
 });
