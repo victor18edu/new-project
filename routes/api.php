@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\ActivityController;
 use App\Http\Controllers\Api\V1\ActivityTypeController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -29,6 +30,18 @@ Route::prefix('v1')->group(function () {
 
     // Endpoint de health da API (público, sem autenticação)
     Route::get('/health', [HealthController::class, 'index']);
+
+    // Autenticação - rotas públicas com throttle
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::post('/auth/login', [AuthController::class, 'login']);
+        Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    });
+
+    // Autenticação - rotas protegidas por token Sanctum
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::get('/auth/me', [AuthController::class, 'me']);
+    });
 
     // Rotas protegidas por autenticação (Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
