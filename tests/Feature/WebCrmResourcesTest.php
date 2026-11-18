@@ -243,4 +243,59 @@ class WebCrmResourcesTest extends TestCase
 
         $this->assertSame('Nome atualizado', $company->fresh()->trade_name);
     }
+
+    public function test_show_de_recursos_genericos_exige_autenticacao(): void
+    {
+        $this->get('/segments/1')->assertRedirect('/login');
+    }
+
+    public function test_todos_os_recursos_genericos_tem_rota_de_detalhes(): void
+    {
+        foreach (CrmResources::all() as $key => $definition) {
+            $this->assertStringContainsString('/'.$key.'/123', route($definition->route('show'), 123));
+        }
+    }
+
+    public function test_show_de_segmento_exibe_dados_acoes_e_link_na_listagem(): void
+    {
+        $this->actingAsUser();
+
+        $segment = Segment::create(['name' => 'Saúde', 'slug' => 'saude', 'is_active' => true]);
+
+        $this->get("/segments/{$segment->id}")
+            ->assertOk()
+            ->assertSee('Detalhes do segmento')
+            ->assertSee('Saúde')
+            ->assertSee(route('web.segments.edit', $segment), false);
+
+        $this->get('/segments')
+            ->assertOk()
+            ->assertSee(route('web.segments.show', $segment), false);
+    }
+
+    public function test_show_de_empresa_exibe_relacionamento(): void
+    {
+        $this->actingAsUser();
+
+        $segment = Segment::create(['name' => 'Tecnologia', 'slug' => 'tecnologia', 'is_active' => true]);
+        $company = $this->createCompany([
+            'segment_id' => $segment->id,
+            'trade_name' => 'Acme Ltda',
+        ]);
+
+        $this->get("/companies/{$company->id}")
+            ->assertOk()
+            ->assertSee('Acme Ltda')
+            ->assertSee('Tecnologia');
+    }
+
+    public function test_show_nao_exibe_registro_removido(): void
+    {
+        $this->actingAsUser();
+
+        $company = $this->createCompany();
+        $company->delete();
+
+        $this->get("/companies/{$company->id}")->assertNotFound();
+    }
 }

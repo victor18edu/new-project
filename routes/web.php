@@ -21,6 +21,7 @@ Route::middleware([
         Route::get($key, [CrmResourceController::class, 'index'])->name("web.{$key}.index");
         Route::get("{$key}/create", [CrmResourceController::class, 'create'])->name("web.{$key}.create");
         Route::post($key, [CrmResourceController::class, 'store'])->name("web.{$key}.store");
+        Route::get("{$key}/{record}", [CrmResourceController::class, 'show'])->name("web.{$key}.show");
         Route::get("{$key}/{record}/edit", [CrmResourceController::class, 'edit'])->name("web.{$key}.edit");
         Route::put("{$key}/{record}", [CrmResourceController::class, 'update'])->name("web.{$key}.update");
         Route::delete("{$key}/{record}", [CrmResourceController::class, 'destroy'])->name("web.{$key}.destroy");

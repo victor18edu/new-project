@@ -104,6 +104,24 @@ class CrmResourceController extends Controller
             ->with('status', "{$definition->singularLabel} {$participle} com sucesso.");
     }
 
+    public function show(Request $request, int|string $record): View
+    {
+        $definition = $this->definition($request);
+        $query = $definition->modelClass::query();
+
+        if ($definition->with !== []) {
+            $query->with($definition->with);
+        }
+
+        $model = $query->findOrFail($record);
+        Gate::authorize('view', $model);
+
+        return view('crm.show', [
+            'definition' => $definition,
+            'record' => $model,
+        ]);
+    }
+
     public function edit(Request $request, int|string $record): View
     {
         $definition = $this->definition($request);

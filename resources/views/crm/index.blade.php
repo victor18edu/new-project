@@ -73,32 +73,14 @@
                     @forelse ($records as $record)
                         <tr class="hover:bg-slate-50/70">
                             @foreach ($definition->columns as $column)
-                                @php
-                                    $value = data_get($record, $column['key']);
-                                    $format = $column['format'] ?? 'text';
-                                @endphp
                                 <td class="px-5 py-4 text-slate-600">
-                                    @if ($value === null || $value === '')
-                                        <span class="text-slate-400">{{ $column['default'] ?? '—' }}</span>
-                                    @elseif ($format === 'datetime')
-                                        {{ $value instanceof \Carbon\CarbonInterface ? $value->format('d/m/Y H:i') : $value }}
-                                    @elseif ($format === 'date')
-                                        {{ $value instanceof \Carbon\CarbonInterface ? $value->format('d/m/Y') : $value }}
-                                    @elseif ($format === 'currency')
-                                        R$ {{ number_format((float) $value, 2, ',', '.') }}
-                                    @elseif ($format === 'boolean')
-                                        {{ $value ? 'Sim' : 'Não' }}
-                                    @elseif ($format === 'badge')
-                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                            {{ $column['options'][$value] ?? $value }}
-                                        </span>
-                                    @else
-                                        {{ \Illuminate\Support\Str::limit((string) $value, 80) }}
-                                    @endif
+                                    <x-crm-value :column="$column" :value="data_get($record, $column['key'])" />
                                 </td>
                             @endforeach
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-3">
+                                    <a href="{{ route($definition->route('show'), $record) }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Ver</a>
+
                                     @can('update', $record)
                                         <a href="{{ route($definition->route('edit'), $record) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Editar</a>
                                     @endcan
