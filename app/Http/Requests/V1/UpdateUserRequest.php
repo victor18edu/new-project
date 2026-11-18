@@ -23,7 +23,7 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|required|string|max:150',
-            'email' => 'sometimes|required|email|max:150|unique:users,email,' . $this->route('user'),
+            'email' => 'sometimes|required|email|max:150|unique:users,email,' . $this->userId(),
             'password' => 'sometimes|nullable|string|min:8',
             'role' => 'sometimes|required|in:admin,sales_rep,manager',
             'is_active' => 'sometimes|boolean',
@@ -31,5 +31,12 @@ class UpdateUserRequest extends FormRequest
             'avatar_url' => 'sometimes|nullable|string|max:255',
             'last_login_at' => 'sometimes|nullable|date',
         ];
+    }
+
+    private function userId(): int|string|null
+    {
+        $user = $this->route('user');
+
+        return $user instanceof \App\Models\User ? $user->getKey() : $user;
     }
 }

@@ -35,7 +35,7 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
-        return $user->id === $model->id;
+        return $user->id === $model->id || $this->isManager($user);
     }
 
     /**
@@ -43,6 +43,11 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
-        return $user->id === $model->id;
+        return $user->id === $model->id || $this->isManager($user);
+    }
+
+    private function isManager(User $user): bool
+    {
+        return in_array($user->role, ['admin', 'manager'], true);
     }
 }
