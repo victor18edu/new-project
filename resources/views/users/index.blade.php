@@ -109,6 +109,8 @@
                             </td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-3">
+                                    <a href="{{ route('web.users.show', $user) }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Ver</a>
+
                                     @can('update', $user)
                                         <a href="{{ route('web.users.edit', $user) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Editar</a>
                                     @endcan

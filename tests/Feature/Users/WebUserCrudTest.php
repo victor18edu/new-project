@@ -59,6 +59,26 @@ class WebUserCrudTest extends TestCase
         $this->get("/users/{$admin->id}/edit")->assertOk()->assertSee('Salvar alterações');
     }
 
+    public function test_show_requires_authentication_and_does_not_expose_password(): void
+    {
+        $target = User::factory()->create([
+            'name' => 'Usuário Detalhado',
+            'email' => 'detalhes@example.com',
+            'password' => Hash::make('Senha@123456'),
+        ]);
+
+        $this->get("/users/{$target->id}")->assertRedirect('/login');
+
+        $this->actingAsAdmin();
+
+        $this->get("/users/{$target->id}")
+            ->assertOk()
+            ->assertSee('Usuário Detalhado')
+            ->assertSee('detalhes@example.com')
+            ->assertDontSee($target->password)
+            ->assertSee(route('web.users.edit', $target), false);
+    }
+
     public function test_store_creates_user_with_hashed_password(): void
     {
         $this->actingAsAdmin();
@@ -66,7 +86,7 @@ class WebUserCrudTest extends TestCase
         $this->post('/users', [
             'name' => 'Carla Dias',
             'email' => 'carla@example.com',
-            'password' => 'senha123456',
+            'password' => 'Senha@123456',
             'role' => 'manager',
             'phone' => '11999999999',
             'is_active' => 1,
@@ -76,7 +96,7 @@ class WebUserCrudTest extends TestCase
 
         $user = User::where('email', 'carla@example.com')->firstOrFail();
 
-        $this->assertTrue(Hash::check('senha123456', $user->password));
+        $this->assertTrue(Hash::check('Senha@123456', $user->password));
         $this->assertTrue($user->is_active);
         $this->assertSame('manager', $user->role);
     }
@@ -91,9 +111,23 @@ class WebUserCrudTest extends TestCase
             ->assertSessionHasErrors(['name', 'email', 'password', 'role']);
     }
 
+    public function test_store_rejects_weak_password(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->post('/users', [
+            'name' => 'Senha Fraca',
+            'email' => 'fraca@example.com',
+            'password' => 'senha123456',
+            'role' => 'sales_rep',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertDatabaseMissing('users', ['email' => 'fraca@example.com']);
+    }
+
     public function test_update_keeps_current_password_when_left_blank(): void
     {
-        $user = User::factory()->create(['password' => Hash::make('senha123456')]);
+        $user = User::factory()->create(['password' => Hash::make('Senha@123456')]);
         $originalPassword = $user->password;
 
         $this->actingAs($user)
@@ -109,6 +143,18 @@ class WebUserCrudTest extends TestCase
 
         $this->assertSame('Nome Atualizado', $user->fresh()->name);
         $this->assertSame($originalPassword, $user->fresh()->password);
+    }
+
+    public function test_update_rejects_email_belonging_to_another_user(): void
+    {
+        $actor = $this->actingAsAdmin();
+        $other = User::factory()->create(['email' => 'outro@example.com']);
+        $originalEmail = $actor->email;
+
+        $this->put("/users/{$actor->id}", ['email' => $other->email])
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame($originalEmail, $actor->fresh()->email);
     }
 
     public function test_admin_and_manager_can_update_other_users(): void

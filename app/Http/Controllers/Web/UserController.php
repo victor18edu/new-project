@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\V1\StoreUserRequest;
-use App\Http\Requests\V1\UpdateUserRequest;
+use App\Http\Requests\Web\StoreUserRequest;
+use App\Http\Requests\Web\UpdateUserRequest;
 use App\Models\Activity;
 use App\Models\Company;
 use App\Models\Opportunity;
@@ -72,6 +72,16 @@ class UserController extends Controller
 
         return redirect()->route('web.users.index')
             ->with('status', 'Usuário criado com sucesso.');
+    }
+
+    public function show(User $user): View
+    {
+        Gate::authorize('view', $user);
+
+        return view('users.show', [
+            'user' => $user,
+            'roles' => self::ROLES,
+        ]);
     }
 
     public function edit(User $user): View

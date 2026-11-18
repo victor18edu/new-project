@@ -15,7 +15,7 @@ Route::middleware([
 ])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    Route::resource('users', UserController::class)->names('web.users')->except(['show']);
+    Route::resource('users', UserController::class)->names('web.users');
 
     foreach (CrmResources::all() as $key => $definition) {
         Route::get($key, [CrmResourceController::class, 'index'])->name("web.{$key}.index");
