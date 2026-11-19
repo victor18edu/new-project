@@ -81,6 +81,15 @@ class WebAuthenticationTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
+    public function test_usuario_autenticado_e_redirecionado_para_dashboard_na_rota_raiz(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertRedirect('/dashboard');
+    }
+
     public function test_logout_web_encerra_sessao_e_revoga_token_web_session(): void
     {
         $user = User::factory()->create([

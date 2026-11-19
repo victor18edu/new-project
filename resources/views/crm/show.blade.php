@@ -30,11 +30,11 @@
             </div>
 
             <dl class="mt-6 grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                @foreach ($definition->columns as $column)
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $column['label'] }}</dt>
-                        <dd class="mt-1 text-sm text-slate-900">
-                            <x-crm-value :column="$column" :value="data_get($record, $column['key'])" />
+                @foreach ($definition->detailRows($record) as $row)
+                    <div @class(['sm:col-span-2' => $row['key'] === 'description' || str_contains($row['key'], 'notes')])>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</dt>
+                        <dd class="mt-1 whitespace-pre-line text-sm text-slate-900">
+                            <x-crm-value :column="$row" :value="$row['value']" :truncate="false" />
                         </dd>
                     </div>
                 @endforeach
@@ -50,13 +50,12 @@
                 @endcan
 
                 @can('delete', $record)
-                    <form method="POST" action="{{ route($definition->route('destroy'), $record) }}" onsubmit="return confirm('Tem certeza que deseja remover este registro?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="rounded-lg px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                            Excluir
-                        </button>
-                    </form>
+                    <x-delete-button
+                        :action="route($definition->route('destroy'), $record)"
+                        :form-id="'delete-'.$definition->key.'-'.$record->getKey()"
+                        message="Tem certeza que deseja remover este registro?"
+                        class="rounded-lg px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    />
                 @endcan
             </div>
         </div>

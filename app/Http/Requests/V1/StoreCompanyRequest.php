@@ -35,7 +35,7 @@ class StoreCompanyRequest extends FormRequest
             'is_mobile_responsive' => 'sometimes|nullable|boolean',
             'has_whatsapp_button' => 'sometimes|nullable|boolean',
             'has_active_ads' => 'sometimes|nullable|boolean',
-            'pain_points_notes' => 'sometimes|nullable|string',
+            'pain_points_notes' => 'sometimes|nullable|string|max:1000',
             'address' => 'sometimes|nullable|string|max:200',
             'city' => 'required|string|max:100',
             'state' => 'required|string|size:2',

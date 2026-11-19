@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Closure;
 use Illuminate\Support\Str;
 
 final class CrmResourceDefinition
@@ -56,5 +57,95 @@ final class CrmResourceDefinition
     public function routeParameter(): string
     {
         return Str::snake(Str::singular(str_replace('-', '_', $this->key)));
+    }
+
+    /**
+     * Build every row shown on the details page: the list columns plus any
+     * registration field that is not already represented by a column.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function detailRows(mixed $record): array
+    {
+        $rows = [];
+        $coveredKeys = [];
+
+        foreach ($this->columns as $column) {
+            $coveredKeys[] = $column['key'];
+
+            $rows[] = [
+                'label' => $column['label'],
+                'key' => $column['key'],
+                'format' => $column['format'] ?? 'text',
+                'options' => $column['options'] ?? null,
+                'default' => $column['default'] ?? null,
+                'value' => data_get($record, $column['key']),
+            ];
+        }
+
+        foreach ($this->fields as $field) {
+            $name = $field['name'];
+
+            if ($this->fieldIsCovered($name, $coveredKeys)) {
+                continue;
+            }
+
+            $type = $field['type'] ?? 'text';
+            $value = data_get($record, $name);
+
+            if ($type === 'select' && isset($field['options'])) {
+                $options = $this->resolveOptions($field['options']);
+                $value = $options[$value] ?? $value;
+            }
+
+            $rows[] = [
+                'label' => $field['label'] ?? Str::headline($name),
+                'key' => $name,
+                'format' => match ($type) {
+                    'checkbox' => 'boolean',
+                    'date' => 'date',
+                    'datetime-local' => 'datetime',
+                    default => 'text',
+                },
+                'options' => null,
+                'default' => null,
+                'value' => $value,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<int, string>  $coveredKeys
+     */
+    private function fieldIsCovered(string $field, array $coveredKeys): bool
+    {
+        if (in_array($field, $coveredKeys, true)) {
+            return true;
+        }
+
+        foreach ($coveredKeys as $key) {
+            if (! str_contains($key, '.')) {
+                continue;
+            }
+
+            $relation = Str::snake(explode('.', $key, 2)[0]);
+
+            if ($field === $relation || $field === $relation.'_id') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveOptions(mixed $options): array
+    {
+        if ($options instanceof Closure) {
+            $options = $options();
+        }
+
+        return is_array($options) ? $options : [];
     }
 }

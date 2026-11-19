@@ -24,8 +24,8 @@ class UpdateLeadSourceRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:100',
             'slug' => 'sometimes|required|string|max:120|unique:lead_sources,slug,' . $this->route('lead_source'),
-            'description' => 'sometimes|nullable|string',
-            'channel_type' => 'sometimes|nullable|in:outbound,inbound,platform,referral,other',
+            'description' => 'sometimes|nullable|string|max:1000',
+            'channel_type' => 'sometimes|required|in:outbound,inbound,platform,referral,other',
             'is_active' => 'sometimes|nullable|boolean',
         ];
     }

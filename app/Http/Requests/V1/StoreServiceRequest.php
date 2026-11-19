@@ -25,7 +25,7 @@ class StoreServiceRequest extends FormRequest
             'category_id' => 'required|exists:service_categories,id',
             'name' => 'required|string|max:150',
             'slug' => 'required|string|max:160|unique:services,slug',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'base_price' => 'sometimes|nullable|numeric|decimal:0,2|max:9999999999.99',
             'pricing_type' => 'sometimes|nullable|in:one_off,monthly,hourly',
             'is_active' => 'sometimes|nullable|boolean',

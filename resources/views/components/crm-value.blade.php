@@ -1,4 +1,4 @@
-@props(['column', 'value' => null])
+@props(['column', 'value' => null, 'truncate' => true])
 
 @php
     $format = $column['format'] ?? 'text';
@@ -19,5 +19,5 @@
         {{ $column['options'][$value] ?? $value }}
     </span>
 @else
-    {{ \Illuminate\Support\Str::limit((string) $value, 80) }}
+    {{ $truncate ? \Illuminate\Support\Str::limit((string) $value, 80) : (string) $value }}
 @endif

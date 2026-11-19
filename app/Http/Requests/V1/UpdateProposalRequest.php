@@ -35,7 +35,7 @@ class UpdateProposalRequest extends FormRequest
             'sent_at' => 'sometimes|nullable|date',
             'accepted_at' => 'sometimes|nullable|date',
             'pdf_path' => 'sometimes|nullable|string|max:255',
-            'notes' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string|max:1000',
         ];
     }
 

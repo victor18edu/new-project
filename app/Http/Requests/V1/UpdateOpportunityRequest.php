@@ -36,8 +36,8 @@ class UpdateOpportunityRequest extends FormRequest
             'expected_close_date' => 'sometimes|nullable|date',
             'closed_at' => 'sometimes|nullable|date',
             'status' => 'sometimes|required|in:open,won,lost,abandoned',
-            'lost_reason_notes' => 'sometimes|nullable|string',
-            'notes' => 'sometimes|nullable|string',
+            'lost_reason_notes' => 'sometimes|nullable|string|max:1000',
+            'notes' => 'sometimes|nullable|string|max:1000',
         ];
     }
 

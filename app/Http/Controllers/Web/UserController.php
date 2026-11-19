@@ -11,6 +11,7 @@ use App\Models\Opportunity;
 use App\Models\OpportunityStageHistory;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Support\FormLimits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -49,6 +50,7 @@ class UserController extends Controller
         return view('users.index', [
             'users' => $users,
             'roles' => self::ROLES,
+            'protectedUserId' => User::PROTECTED_ID,
             'filters' => [
                 'q' => $search,
                 'role' => $role,
@@ -57,11 +59,14 @@ class UserController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         Gate::authorize('create', User::class);
 
-        return view('users.create', ['roles' => self::ROLES]);
+        return view('users.create', [
+            'roles' => self::ROLES,
+            'limits' => FormLimits::from($request, StoreUserRequest::class),
+        ]);
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
@@ -81,16 +86,19 @@ class UserController extends Controller
         return view('users.show', [
             'user' => $user,
             'roles' => self::ROLES,
+            'protectedUserId' => User::PROTECTED_ID,
         ]);
     }
 
-    public function edit(User $user): View
+    public function edit(Request $request, User $user): View
     {
         Gate::authorize('update', $user);
 
         return view('users.edit', [
             'user' => $user,
             'roles' => self::ROLES,
+            'protectedUserId' => User::PROTECTED_ID,
+            'limits' => FormLimits::from($request, UpdateUserRequest::class),
         ]);
     }
 
@@ -104,6 +112,10 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
+        if ($user->id === User::PROTECTED_ID) {
+            $validated = array_intersect_key($validated, array_flip(['name', 'email', 'password']));
+        }
+
         $user->update($validated);
 
         return redirect()->route('web.users.index')
@@ -113,6 +125,11 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         Gate::authorize('delete', $user);
+
+        if ($user->id === User::PROTECTED_ID) {
+            return redirect()->route('web.users.index')
+                ->with('error', 'O usuário principal do sistema não pode ser removido.');
+        }
 
         $dependencies = [];
 

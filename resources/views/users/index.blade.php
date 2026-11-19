@@ -35,7 +35,7 @@
 
             <div class="w-full sm:w-44">
                 <x-label for="role" value="Perfil" />
-                <select id="role" name="role" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-3 py-3 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
+                <select id="role" name="role" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
                     <option value="">Todos</option>
                     @foreach ($roles as $value => $label)
                         <option value="{{ $value }}" @selected($filters['role'] === $value)>{{ $label }}</option>
@@ -45,7 +45,7 @@
 
             <div class="w-full sm:w-40">
                 <x-label for="status" value="Status" />
-                <select id="status" name="status" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-3 py-3 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
+                <select id="status" name="status" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
                     <option value="">Todos</option>
                     <option value="active" @selected($filters['status'] === 'active')>Ativo</option>
                     <option value="inactive" @selected($filters['status'] === 'inactive')>Inativo</option>
@@ -115,13 +115,15 @@
                                         <a href="{{ route('web.users.edit', $user) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Editar</a>
                                     @endcan
 
-                                    @can('delete', $user)
-                                        <form method="POST" action="{{ route('web.users.destroy', $user) }}" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-500">Excluir</button>
-                                        </form>
-                                    @endcan
+                                    @if ($user->id !== ($protectedUserId ?? null))
+                                        @can('delete', $user)
+                                            <x-delete-button
+                                                :action="route('web.users.destroy', $user)"
+                                                :form-id="'delete-user-'.$user->id"
+                                                message="Tem certeza que deseja remover este usuário?"
+                                            />
+                                        @endcan
+                                    @endif
                                 </div>
                             </td>
                         </tr>

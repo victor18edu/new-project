@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Support\CrmResourceDefinition;
 use App\Support\CrmResources;
+use App\Support\FormLimits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,8 @@ class CrmResourceController extends Controller
         return view('crm.form', [
             'definition' => $definition,
             'record' => null,
+            'limits' => FormLimits::from($request, $definition->storeRequestClass),
+            'numericLimits' => FormLimits::numericMaxFrom($request, $definition->storeRequestClass),
         ]);
     }
 
@@ -131,6 +134,8 @@ class CrmResourceController extends Controller
         return view('crm.form', [
             'definition' => $definition,
             'record' => $model,
+            'limits' => FormLimits::from($request, $definition->updateRequestClass),
+            'numericLimits' => FormLimits::numericMaxFrom($request, $definition->updateRequestClass),
         ]);
     }
 

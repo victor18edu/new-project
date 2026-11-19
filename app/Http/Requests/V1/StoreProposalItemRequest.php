@@ -25,7 +25,7 @@ class StoreProposalItemRequest extends FormRequest
             'proposal_id' => 'required|exists:proposals,id',
             'service_id' => 'sometimes|nullable|exists:services,id',
             'item_name' => 'required|string|max:150',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'quantity' => 'required|numeric|decimal:0,2|max:999999.99',
             'unit_price' => 'required|numeric|decimal:0,2|max:9999999999.99',
             'discount_amount' => 'sometimes|nullable|numeric|decimal:0,2|max:9999999999.99',

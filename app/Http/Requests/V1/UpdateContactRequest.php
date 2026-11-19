@@ -30,7 +30,7 @@ class UpdateContactRequest extends FormRequest
             'is_decision_maker' => 'sometimes|nullable|boolean',
             'is_primary' => 'sometimes|nullable|boolean',
             'company_id' => 'sometimes|required|exists:companies,id',
-            'notes' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string|max:1000',
         ];
     }
 

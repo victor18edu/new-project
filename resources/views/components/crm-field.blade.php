@@ -1,4 +1,4 @@
-@props(['field', 'value' => null])
+@props(['field', 'value' => null, 'max' => null, 'maxValue' => null])
 
 @php
     $name = $field['name'];
@@ -15,11 +15,11 @@
 @endphp
 
 <div class="{{ ($field['col'] ?? 'half') === 'full' ? 'sm:col-span-2' : 'sm:col-span-1' }}">
-    <x-label for="{{ $name }}" value="{{ $field['label'] }}" />
+    <x-label for="{{ $name }}" value="{{ $field['label'] }}" :required="isset($field['required']) && $field['required']" />
 
     @switch($type)
         @case('textarea')
-            <textarea id="{{ $name }}" name="{{ $name }}" rows="{{ $field['rows'] ?? 4 }}" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" placeholder="{{ $field['placeholder'] ?? '' }}" {{ isset($field['required']) && $field['required'] ? 'required' : '' }}>{{ $current }}</textarea>
+            <textarea id="{{ $name }}" name="{{ $name }}" rows="{{ $field['rows'] ?? 4 }}" class="mt-2 block w-full min-h-24 resize-y rounded-lg border-slate-300 bg-white px-4 py-3 text-sm leading-normal text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" placeholder="{{ $field['placeholder'] ?? '' }}" @if ($max !== null) maxlength="{{ $max }}" @endif {{ isset($field['required']) && $field['required'] ? 'required' : '' }}>{{ $current }}</textarea>
             @break
 
         @case('select')
@@ -42,7 +42,7 @@
             @break
 
         @default
-            <x-input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" class="mt-2" :value="$current" placeholder="{{ $field['placeholder'] ?? '' }}" {{ isset($field['required']) && $field['required'] ? 'required' : '' }} @if (in_array($type, ['number', 'decimal'], true)) step="{{ $field['step'] ?? 'any' }}" @endif />
+            <x-input id="{{ $name }}" name="{{ $name }}" type="{{ $inputType }}" class="mt-2" :value="$current" :mask="$field['mask'] ?? null" :step="in_array($type, ['number', 'decimal'], true) ? ($field['step'] ?? 'any') : null" :required="isset($field['required']) && $field['required']" :max="$max" :max-value="$maxValue" placeholder="{{ $field['placeholder'] ?? '' }}" />
     @endswitch
 
     @if (isset($field['help']) && $type !== 'checkbox')

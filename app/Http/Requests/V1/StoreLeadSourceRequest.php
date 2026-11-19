@@ -24,8 +24,8 @@ class StoreLeadSourceRequest extends FormRequest
         return [
             'name' => 'required|string|max:100',
             'slug' => 'required|string|max:120|unique:lead_sources,slug',
-            'description' => 'sometimes|nullable|string',
-            'channel_type' => 'sometimes|nullable|in:outbound,inbound,platform,referral,other',
+            'description' => 'sometimes|nullable|string|max:1000',
+            'channel_type' => 'required|in:outbound,inbound,platform,referral,other',
             'is_active' => 'sometimes|nullable|boolean',
         ];
     }

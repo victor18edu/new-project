@@ -13,6 +13,8 @@ class User extends Authenticatable
 {
     use AuditableTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
+    public const PROTECTED_ID = 1;
+
     protected $fillable = ['name', 'email', 'password', 'phone', 'avatar_url', 'role', 'is_active', 'last_login_at'];
 
     protected $hidden = ['password', 'remember_token'];

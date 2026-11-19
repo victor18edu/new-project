@@ -24,7 +24,7 @@ class StorePipelineRequest extends FormRequest
         return [
             'name' => 'required|string|max:100',
             'slug' => 'required|string|max:120|unique:pipelines,slug',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'is_default' => 'sometimes|nullable|boolean',
             'is_active' => 'sometimes|nullable|boolean',
         ];

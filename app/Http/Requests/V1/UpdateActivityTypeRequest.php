@@ -24,7 +24,7 @@ class UpdateActivityTypeRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:80',
             'slug' => 'sometimes|required|string|max:80|unique:activity_types,slug,' . $this->route('activity_type'),
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'icon' => 'sometimes|nullable|string|max:50',
         ];
     }

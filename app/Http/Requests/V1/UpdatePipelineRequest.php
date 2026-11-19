@@ -24,7 +24,7 @@ class UpdatePipelineRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:100',
             'slug' => 'sometimes|required|string|max:120|unique:pipelines,slug,' . $this->route('pipeline'),
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'is_default' => 'sometimes|nullable|boolean',
             'is_active' => 'sometimes|nullable|boolean',
         ];

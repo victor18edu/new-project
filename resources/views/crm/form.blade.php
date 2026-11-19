@@ -26,7 +26,7 @@
 
             <div class="grid gap-5 sm:grid-cols-2">
                 @foreach ($definition->fields as $field)
-                    <x-crm-field :field="$field" :value="$record?->{$field['name']}" />
+                    <x-crm-field :field="$field" :value="$record?->{$field['name']}" :max="$limits[$field['name']] ?? null" :max-value="$numericLimits[$field['name']] ?? null" />
                 @endforeach
             </div>
 

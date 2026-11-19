@@ -29,11 +29,11 @@ class UpdateActivityRequest extends FormRequest
             'assigned_to' => 'sometimes|nullable|exists:users,id',
             'created_by' => 'sometimes|nullable|exists:users,id',
             'title' => 'sometimes|required|string|max:200',
-            'description' => 'sometimes|nullable|string',
-            'due_date' => 'sometimes|nullable|date',
+            'description' => 'sometimes|nullable|string|max:1000',
+            'due_date' => 'sometimes|required|date',
             'completed_at' => 'sometimes|nullable|date',
             'status' => 'sometimes|required|in:pending,completed,cancelled',
-            'outcome_notes' => 'sometimes|nullable|string',
+            'outcome_notes' => 'sometimes|nullable|string|max:1000',
         ];
     }
 

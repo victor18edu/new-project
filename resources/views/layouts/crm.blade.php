@@ -10,7 +10,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
-    <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased" x-data="{ sidebarOpen: false }">
+    <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased" x-data="{ sidebarOpen: false, confirmOpen: false, confirmMessage: '', confirmFormId: null }" @crm-confirm.window="confirmMessage = $event.detail.message; confirmFormId = $event.detail.formId; confirmOpen = true" @keydown.escape.window="confirmOpen = false">
         <div class="min-h-screen lg:flex">
             <x-crm-navigation />
 
@@ -75,5 +75,28 @@
         </div>
 
         @livewireScripts
+
+        <div x-cloak x-show="confirmOpen" class="fixed inset-0 z-[100] flex items-center justify-center px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="confirm-delete-title">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="confirmOpen = false" aria-hidden="true"></div>
+
+            <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 sm:p-7">
+                <div class="flex items-start gap-4">
+                    <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </span>
+                    <div class="min-w-0">
+                        <h2 id="confirm-delete-title" class="text-lg font-semibold text-slate-900">Confirmar exclusão</h2>
+                        <p class="mt-1 text-sm leading-relaxed text-slate-600" x-text="confirmMessage"></p>
+                    </div>
+                </div>
+
+                <div class="mt-7 flex items-center justify-end gap-3">
+                    <button type="button" @click="confirmOpen = false" class="rounded-lg px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2">Cancelar</button>
+                    <button type="button" @click="const form = document.getElementById(confirmFormId); if (form) { form.submit(); }" class="inline-flex items-center rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">Remover</button>
+                </div>
+            </div>
+        </div>
     </body>
 </html>

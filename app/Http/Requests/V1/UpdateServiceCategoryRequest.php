@@ -24,7 +24,7 @@ class UpdateServiceCategoryRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:100',
             'slug' => 'sometimes|required|string|max:120|unique:service_categories,slug,' . $this->route('service_category'),
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'is_active' => 'sometimes|nullable|boolean',
         ];
     }

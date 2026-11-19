@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\ActivityType;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\LeadSource;
 use App\Models\Opportunity;
 use App\Models\OpportunityStageHistory;
 use App\Models\Pipeline;
@@ -13,9 +14,14 @@ use App\Models\PipelineStage;
 use App\Models\Proposal;
 use App\Models\ProposalItem;
 use App\Models\Segment;
+use App\Models\Service;
+use App\Models\ServiceCategory;
 use App\Models\User;
 use App\Support\CrmResources;
+use App\Support\FormLimits;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class WebCrmResourcesTest extends TestCase
@@ -297,5 +303,243 @@ class WebCrmResourcesTest extends TestCase
         $company->delete();
 
         $this->get("/companies/{$company->id}")->assertNotFound();
+    }
+
+    public function test_formulario_de_contatos_tem_mascara_de_telefone(): void
+    {
+        $this->actingAsUser();
+
+        $this->get('/contacts/create')
+            ->assertOk()
+            ->assertSee('data-phone-mask', false);
+    }
+
+    public function test_exclusao_de_recursos_usa_modal_personalizado(): void
+    {
+        $this->actingAsUser();
+
+        $segment = Segment::create(['name' => 'Saúde', 'slug' => 'saude', 'is_active' => true]);
+
+        $this->get('/segments')
+            ->assertOk()
+            ->assertSee('Tem certeza que deseja remover este registro?')
+            ->assertSee('crm-confirm')
+            ->assertSee('data-confirm-message="Tem certeza que deseja remover este registro?"', false)
+            ->assertSee('data-confirm-form-id="delete-segments-'.$segment->id.'"', false)
+            ->assertDontSee('onsubmit="return confirm');
+
+        $this->get("/segments/{$segment->id}")
+            ->assertOk()
+            ->assertSee('Tem certeza que deseja remover este registro?');
+    }
+
+    public function test_formularios_de_criacao_nao_renderizam_componentes_blade_literais(): void
+    {
+        $this->actingAsUser();
+
+        foreach (array_keys(CrmResources::all()) as $key) {
+            $this->get('/'.$key.'/create')
+                ->assertOk()
+                ->assertDontSee('<x-', false);
+        }
+    }
+
+    public function test_formulario_de_tipo_de_atividade_renderiza_nome_e_slug(): void
+    {
+        $this->actingAsUser();
+
+        $this->get('/activity-types/create')
+            ->assertOk()
+            ->assertSee('name="name"', false)
+            ->assertSee('name="slug"', false);
+    }
+
+    public function test_formularios_de_criacao_aplicam_limite_de_caracteres_das_regras(): void
+    {
+        $this->actingAsUser();
+
+        foreach (CrmResources::all() as $key => $definition) {
+            $limits = FormLimits::from(Request::create('/'), $definition->storeRequestClass);
+            $content = $this->get('/'.$key.'/create')->assertOk()->getContent();
+
+            foreach ($limits as $field => $max) {
+                preg_match('/<(?:input|textarea)\b[^>]*name="'.preg_quote($field, '/').'"[^>]*>/', $content, $matches);
+
+                $this->assertNotEmpty($matches, "Campo {$field} ausente no formulário de {$key}.");
+                $this->assertStringContainsString(
+                    'maxlength="'.$max.'"',
+                    $matches[0],
+                    "Campo {$field} do formulário de {$key} deveria limitar a {$max} caracteres."
+                );
+            }
+        }
+    }
+
+    public function test_formularios_de_criacao_aplicam_mascara_de_limite_numerico(): void
+    {
+        $this->actingAsUser();
+
+        foreach (CrmResources::all() as $key => $definition) {
+            $limits = FormLimits::numericMaxFrom(Request::create('/'), $definition->storeRequestClass);
+            $content = $this->get('/'.$key.'/create')->assertOk()->getContent();
+
+            foreach ($limits as $field => $max) {
+                preg_match('/<(?:input|textarea)\b[^>]*name="'.preg_quote($field, '/').'"[^>]*>/', $content, $matches);
+
+                $this->assertNotEmpty($matches, "Campo {$field} ausente no formulário de {$key}.");
+                $this->assertStringContainsString(
+                    'data-numeric-mask="'.$max.'"',
+                    $matches[0],
+                    "Campo {$field} do formulário de {$key} deveria aplicar a máscara até {$max}."
+                );
+            }
+        }
+    }
+
+    public function test_formulario_de_edicao_de_servico_aplica_mascara_de_limite_numerico(): void
+    {
+        $this->actingAsUser();
+
+        $category = ServiceCategory::create(['name' => 'Consultoria', 'slug' => 'consultoria']);
+        $service = Service::create([
+            'category_id' => $category->id,
+            'name' => 'Consultoria em vendas',
+            'slug' => 'consultoria-em-vendas',
+            'base_price' => '150.00',
+        ]);
+
+        $content = $this->get("/services/{$service->id}/edit")->assertOk()->getContent();
+
+        preg_match('/<input\b[^>]*name="base_price"[^>]*>/', $content, $matches);
+
+        $this->assertNotEmpty($matches);
+        $this->assertStringContainsString('data-numeric-mask="9999999999.99"', $matches[0]);
+    }
+
+    public function test_formulario_de_edicao_de_segmento_limita_descricao(): void
+    {
+        $this->actingAsUser();
+
+        $segment = Segment::create(['name' => 'Saúde', 'slug' => 'saude', 'is_active' => true]);
+
+        $this->get("/segments/{$segment->id}/edit")
+            ->assertOk()
+            ->assertSee('maxlength="1000"', false)
+            ->assertSee('name="description"', false);
+    }
+
+    public function test_descricao_acima_do_limite_retorna_erro_com_limite_na_tela(): void
+    {
+        $this->actingAsUser();
+
+        $segment = Segment::create(['name' => 'Saúde', 'slug' => 'saude', 'is_active' => true]);
+        $description = str_repeat('a', 1001);
+
+        $this->from("/segments/{$segment->id}/edit")
+            ->followingRedirects()
+            ->put("/segments/{$segment->id}", [
+                'name' => 'Saúde',
+                'slug' => 'saude',
+                'description' => $description,
+            ])
+            ->assertOk()
+            ->assertSee('O campo descrição não pode ter mais que 1000 caracteres.');
+
+        $this->assertDatabaseMissing('segments', [
+            'id' => $segment->id,
+            'description' => $description,
+        ]);
+    }
+
+    public function test_show_de_origem_de_lead_exibe_descricao_completa(): void
+    {
+        $this->actingAsUser();
+
+        $description = str_repeat('Descrição detalhada da origem de lead. ', 10);
+
+        $source = LeadSource::create([
+            'name' => 'Indicação',
+            'slug' => 'indicacao',
+            'description' => $description,
+            'channel_type' => 'referral',
+            'is_active' => true,
+        ]);
+
+        $this->get("/lead-sources/{$source->id}")
+            ->assertOk()
+            ->assertSee('Descrição')
+            ->assertSee($description);
+    }
+
+    public function test_detalhes_de_todos_os_recursos_incluem_todos_os_campos_do_cadastro(): void
+    {
+        $this->actingAsUser();
+
+        foreach (CrmResources::all() as $definition) {
+            $record = new ($definition->modelClass);
+            $rowKeys = array_column($definition->detailRows($record), 'key');
+
+            foreach ($definition->fields as $field) {
+                $fieldKey = $field['name'];
+                $isCovered = in_array($fieldKey, $rowKeys, true);
+
+                if (! $isCovered) {
+                    foreach ($rowKeys as $rowKey) {
+                        if (! str_contains($rowKey, '.')) {
+                            continue;
+                        }
+
+                        $relation = Str::snake(explode('.', $rowKey, 2)[0]);
+
+                        if ($fieldKey === $relation || $fieldKey === $relation.'_id') {
+                            $isCovered = true;
+
+                            break;
+                        }
+                    }
+                }
+
+                $this->assertTrue(
+                    $isCovered,
+                    "O campo {$fieldKey} de {$definition->key} não aparece nos detalhes."
+                );
+            }
+        }
+    }
+
+    public function test_formularios_de_crm_marcam_apenas_campos_obrigatorios(): void
+    {
+        $this->actingAsUser();
+
+        $content = $this->get('/companies/create')->assertOk()->getContent();
+
+        foreach (['trade_name', 'corporate_name', 'segment_id', 'owner_id', 'city', 'state', 'status'] as $field) {
+            $this->assertRequiredLabel($content, $field, true);
+        }
+
+        foreach (['tax_id', 'website_url', 'postal_code', 'temperature'] as $field) {
+            $this->assertRequiredLabel($content, $field, false);
+        }
+
+        $leadSource = $this->get('/lead-sources/create')->assertOk()->getContent();
+        $this->assertRequiredLabel($leadSource, 'channel_type', true);
+
+        $activity = $this->get('/activities/create')->assertOk()->getContent();
+        $this->assertRequiredLabel($activity, 'due_date', true);
+    }
+
+    private function assertRequiredLabel(string $content, string $field, bool $required): void
+    {
+        preg_match('/<label\b[^>]*for="'.preg_quote($field, '/').'"[^>]*>(.*?)<\/label>/s', $content, $matches);
+
+        $this->assertNotEmpty($matches, "Rótulo de {$field} ausente.");
+
+        if ($required) {
+            $this->assertStringContainsString('<span class="text-red-600" aria-hidden="true">*</span>', $matches[1]);
+            $this->assertStringContainsString('(obrigatório)', $matches[1]);
+        } else {
+            $this->assertStringNotContainsString('text-red-600', $matches[1]);
+            $this->assertStringNotContainsString('(obrigatório)', $matches[1]);
+        }
     }
 }

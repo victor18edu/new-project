@@ -43,7 +43,7 @@
                 @endphp
                 <div class="w-full sm:w-44">
                     <x-label for="filter-{{ $filter['name'] }}" value="{{ $filter['label'] }}" />
-                    <select id="filter-{{ $filter['name'] }}" name="{{ $filter['name'] }}" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-3 py-3 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
+                    <select id="filter-{{ $filter['name'] }}" name="{{ $filter['name'] }}" class="mt-2 block w-full rounded-lg border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
                         <option value="">Todos</option>
                         @foreach ($options as $value => $label)
                             <option value="{{ $value }}" @selected((string) $value === $filters[$filter['name']])>{{ $label }}</option>
@@ -86,11 +86,11 @@
                                     @endcan
 
                                     @can('delete', $record)
-                                        <form method="POST" action="{{ route($definition->route('destroy'), $record) }}" onsubmit="return confirm('Tem certeza que deseja remover este registro?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-500">Excluir</button>
-                                        </form>
+                                        <x-delete-button
+                                            :action="route($definition->route('destroy'), $record)"
+                                            :form-id="'delete-'.$definition->key.'-'.$record->getKey()"
+                                            message="Tem certeza que deseja remover este registro?"
+                                        />
                                     @endcan
                                 </div>
                             </td>

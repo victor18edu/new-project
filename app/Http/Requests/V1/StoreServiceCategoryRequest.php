@@ -24,7 +24,7 @@ class StoreServiceCategoryRequest extends FormRequest
         return [
             'name' => 'required|string|max:100',
             'slug' => 'required|string|max:120|unique:service_categories,slug',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'is_active' => 'sometimes|nullable|boolean',
         ];
     }

@@ -207,4 +207,162 @@ class WebUserCrudTest extends TestCase
 
         $this->assertDatabaseHas('users', ['id' => $target->id, 'deleted_at' => null]);
     }
+
+    public function test_formularios_de_usuario_tem_mascara_de_telefone(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        $this->get('/users/create')->assertOk()->assertSee('data-phone-mask', false);
+        $this->get("/users/{$admin->id}/edit")->assertOk()->assertSee('data-phone-mask', false);
+    }
+
+    public function test_formularios_de_usuario_aplicam_limite_de_caracteres(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        foreach (['/users/create', "/users/{$admin->id}/edit"] as $url) {
+            $content = $this->get($url)->assertOk()->getContent();
+
+            foreach (['name' => 150, 'email' => 150, 'phone' => 20] as $field => $max) {
+                preg_match('/<input\b[^>]*name="'.$field.'"[^>]*>/', $content, $matches);
+
+                $this->assertNotEmpty($matches, "Campo {$field} ausente em {$url}.");
+                $this->assertStringContainsString('maxlength="'.$max.'"', $matches[0]);
+            }
+        }
+    }
+
+    public function test_exclusao_de_usuario_usa_modal_personalizado(): void
+    {
+        $this->actingAsAdmin();
+        $target = User::factory()->create();
+
+        $this->get('/users')
+            ->assertOk()
+            ->assertSee('Tem certeza que deseja remover este usuário?')
+            ->assertSee('crm-confirm')
+            ->assertDontSee('onsubmit="return confirm');
+
+        $this->get("/users/{$target->id}")
+            ->assertOk()
+            ->assertSee('Tem certeza que deseja remover este usuário?')
+            ->assertDontSee('onsubmit="return confirm');
+    }
+
+    public function test_usuario_principal_nao_pode_ser_excluido(): void
+    {
+        $admin = User::findOrFail(User::PROTECTED_ID);
+        $this->actingAs($admin);
+
+        $this->delete('/users/'.$admin->id)
+            ->assertRedirect('/users')
+            ->assertSessionHas('error', 'O usuário principal do sistema não pode ser removido.');
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id, 'deleted_at' => null]);
+    }
+
+    public function test_usuario_principal_so_atualiza_nome_email_e_senha(): void
+    {
+        $admin = User::findOrFail(User::PROTECTED_ID);
+        $originalRole = $admin->role;
+        $originalPhone = $admin->phone;
+
+        $this->actingAs($admin)
+            ->put('/users/'.$admin->id, [
+                'name' => 'Admin Atualizado',
+                'email' => 'admin-novo@example.com',
+                'password' => 'Senha@123456',
+                'role' => 'sales_rep',
+                'is_active' => 0,
+                'phone' => '11988887777',
+            ])
+            ->assertRedirect('/users')
+            ->assertSessionHas('status', 'Usuário atualizado com sucesso.');
+
+        $admin->refresh();
+
+        $this->assertSame('Admin Atualizado', $admin->name);
+        $this->assertSame('admin-novo@example.com', $admin->email);
+        $this->assertSame($originalRole, $admin->role);
+        $this->assertTrue($admin->is_active);
+        $this->assertSame($originalPhone, $admin->phone);
+    }
+
+    public function test_formulario_do_usuario_principal_oculta_perfil_status_e_telefone(): void
+    {
+        $admin = User::findOrFail(User::PROTECTED_ID);
+        $this->actingAs($admin);
+
+        $this->get('/users/'.$admin->id.'/edit')
+            ->assertOk()
+            ->assertSee('Administrador')
+            ->assertSee('O perfil do usuário principal não pode ser alterado.')
+            ->assertDontSee('name="role"', false)
+            ->assertDontSee('name="is_active"', false)
+            ->assertDontSee('name="phone"', false);
+    }
+
+    public function test_usuario_principal_nao_exibe_botao_de_excluir(): void
+    {
+        $admin = User::findOrFail(User::PROTECTED_ID);
+        User::factory()->create();
+        $this->actingAs($admin);
+
+        $this->get('/users')
+            ->assertOk()
+            ->assertDontSee('data-confirm-form-id="delete-user-'.$admin->id.'"', false);
+
+        $this->get('/users/'.$admin->id)
+            ->assertOk()
+            ->assertDontSee('data-confirm-form-id="delete-user-'.$admin->id.'"', false);
+    }
+
+    public function test_formularios_de_usuario_marcam_apenas_campos_obrigatorios(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        $create = $this->get('/users/create')->assertOk()->getContent();
+
+        foreach (['name', 'email', 'password', 'role'] as $field) {
+            $this->assertRequiredLabel($create, $field, true);
+        }
+
+        foreach (['phone', 'is_active'] as $field) {
+            $this->assertRequiredLabel($create, $field, false);
+        }
+
+        $edit = $this->get("/users/{$admin->id}/edit")->assertOk()->getContent();
+
+        foreach (['name', 'email', 'role'] as $field) {
+            $this->assertRequiredLabel($edit, $field, true);
+        }
+
+        foreach (['password', 'phone', 'is_active'] as $field) {
+            $this->assertRequiredLabel($edit, $field, false);
+        }
+
+        $protected = User::findOrFail(User::PROTECTED_ID);
+        $this->actingAs($protected);
+
+        $this->assertRequiredLabel(
+            $this->get("/users/{$protected->id}/edit")->assertOk()->getContent(),
+            'role',
+            false
+        );
+    }
+
+    private function assertRequiredLabel(string $content, string $field, bool $required): void
+    {
+        preg_match('/<label\b[^>]*for="'.preg_quote($field, '/').'"[^>]*>(.*?)<\/label>/s', $content, $matches);
+
+        $this->assertNotEmpty($matches, "Rótulo de {$field} ausente.");
+
+        if ($required) {
+            $this->assertStringContainsString('<span class="text-red-600" aria-hidden="true">*</span>', $matches[1]);
+            $this->assertStringContainsString('(obrigatório)', $matches[1]);
+        } else {
+            $this->assertStringNotContainsString('text-red-600', $matches[1]);
+            $this->assertStringNotContainsString('(obrigatório)', $matches[1]);
+        }
+    }
 }

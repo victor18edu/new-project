@@ -24,7 +24,7 @@ class UpdateSegmentRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:100',
             'slug' => 'sometimes|required|string|max:120|unique:segments,slug,' . $this->route('segment'),
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'is_active' => 'sometimes|nullable|boolean',
         ];
     }

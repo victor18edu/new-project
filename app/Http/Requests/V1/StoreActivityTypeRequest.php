@@ -24,7 +24,7 @@ class StoreActivityTypeRequest extends FormRequest
         return [
             'name' => 'required|string|max:80',
             'slug' => 'required|string|max:80|unique:activity_types,slug',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:1000',
             'icon' => 'sometimes|nullable|string|max:50',
         ];
     }

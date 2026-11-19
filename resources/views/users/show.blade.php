@@ -83,15 +83,16 @@
                     </a>
                 @endcan
 
-                @can('delete', $user)
-                    <form method="POST" action="{{ route('web.users.destroy', $user) }}" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="rounded-lg px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                            Excluir
-                        </button>
-                    </form>
-                @endcan
+                @if ($user->id !== ($protectedUserId ?? null))
+                    @can('delete', $user)
+                        <x-delete-button
+                            :action="route('web.users.destroy', $user)"
+                            :form-id="'delete-user-'.$user->id"
+                            message="Tem certeza que deseja remover este usuário?"
+                            class="rounded-lg px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        />
+                    @endcan
+                @endif
             </div>
         </div>
     </div>
