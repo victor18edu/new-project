@@ -11,12 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $password = config('initial-admin.password');
+
+        if (! $password) {
+            throw new RuntimeException('Defina ADMIN_PASSWORD no .env antes de rodar as migrations.');
+        }
+
         $now = now();
-        $email = 'admin@example.com';
+        $email = config('initial-admin.email');
 
         $attributes = [
-            'name' => 'Admin',
-            'password' => Hash::make('password'),
+            'name' => config('initial-admin.name'),
+            'password' => Hash::make($password),
             'role' => 'admin',
             'is_active' => true,
             'email_verified_at' => $now,
@@ -45,6 +51,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::table('users')->where('email', 'admin@example.com')->delete();
+        DB::table('users')->where('email', config('initial-admin.email'))->delete();
     }
 };

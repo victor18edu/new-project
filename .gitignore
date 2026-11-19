@@ -27,8 +27,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
-AGENTS.md
-CLAUDE.md
 coverage/
 /bootstrap/cache/*.php
 .eslintcache
@@ -36,3 +34,8 @@ coverage/
 yarn-debug.log*
 yarn-error.log*
 npm-debug.log*
+*.md
+!/README.md
+/.claude/
+/.mcp.json
+/boost.json
