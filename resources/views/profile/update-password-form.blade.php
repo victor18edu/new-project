@@ -32,7 +32,7 @@
             {{ __('Saved.') }}
         </x-action-message>
 
-        <x-button>
+        <x-button wire:loading.attr="disabled" wire:target="updatePassword">
             {{ __('Save') }}
         </x-button>
     </x-slot>

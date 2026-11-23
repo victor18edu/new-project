@@ -39,7 +39,7 @@
                 {{ __('Created.') }}
             </x-action-message>
 
-            <x-button>
+            <x-button wire:loading.attr="disabled" wire:target="createApiToken">
                 {{ __('Create') }}
             </x-button>
         </x-slot>
