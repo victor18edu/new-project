@@ -43,6 +43,12 @@
             <div class="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-5">
                 <a href="{{ route($definition->indexRoute()) }}" class="rounded-lg px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900">Voltar</a>
 
+                @if ($record instanceof \App\Models\Contact)
+                    <a href="{{ route('web.contacts.whatsapp.show', $record) }}" class="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                        Conversa no WhatsApp
+                    </a>
+                @endif
+
                 @can('update', $record)
                     <a href="{{ route($definition->route('edit'), $record) }}" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         Editar

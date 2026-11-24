@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'is_decision_maker',
     'is_primary',
     'company_id',
+    'assigned_user_id',
     'notes',
 ])]
 class Contact extends BaseModel
@@ -37,6 +38,11 @@ class Contact extends BaseModel
         return $this->belongsTo(Company::class, 'company_id');
     }
 
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
+    }
+
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class, 'contact_id');
@@ -50,5 +56,10 @@ class Contact extends BaseModel
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class, 'contact_id');
+    }
+
+    public function whatsappMessages(): HasMany
+    {
+        return $this->hasMany(WhatsAppMessage::class, 'contact_id');
     }
 }

@@ -30,6 +30,7 @@ class StoreContactRequest extends FormRequest
             'is_decision_maker' => 'sometimes|nullable|boolean',
             'is_primary' => 'sometimes|nullable|boolean',
             'company_id' => 'required|exists:companies,id',
+            'assigned_user_id' => 'sometimes|nullable|exists:users,id',
             'notes' => 'sometimes|nullable|string|max:1000',
         ];
     }

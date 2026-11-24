@@ -41,9 +41,70 @@ services:
     networks:
       - backend_network
 
+  evolution_api:
+    image: evoapicloud/evolution-api:v2.3.8
+    container_name: laravel_evolution_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      CORS_ORIGIN: "*"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgres://evolution:${EVOLUTION_DB_PASSWORD}@evolution_db:5432/evolution_db
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      CACHE_LOCAL_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_PREFIX_KEY: "evolution-api:"
+      CACHE_REDIS_SAVE_INSTANCES: "true"
+      CACHE_REDIS_TTL: "3600"
+      CACHE_REDIS_URI: redis://evolution_redis:6379
+      SERVER_PORT: "8080"
+      SERVER_TYPE: http
+      SERVER_URL: ${EVOLUTION_SERVER_URL:-http://localhost:8080}
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      LOG_BAILEYS: error
+      QRCODE_LIMIT: "30"
+    volumes:
+      - evolution_instances:/evolution/instances
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - evolution_db
+      - evolution_redis
+    networks:
+      - backend_network
+
+  evolution_db:
+    image: postgres:15
+    container_name: laravel_evolution_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolution_db
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD}
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+    networks:
+      - backend_network
+
+  evolution_redis:
+    image: redis:7-alpine
+    container_name: laravel_evolution_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - evolution_redis_data:/data
+    networks:
+      - backend_network
+
 networks:
   backend_network:
     driver: bridge
 
 volumes:
   db_data:
+  evolution_instances:
+  evolution_db_data:
+  evolution_redis_data:

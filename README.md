@@ -101,4 +101,101 @@ http://localhost:8000/api/documentation
 | `docker exec laravel_app php artisan key:generate` | Gerar APP_KEY |
 ```
 
+## 💬 WhatsApp (Evolution API + QR Code)
+
+O CRM usa a **Evolution API** conectada por QR Code, com **uma única instância/número** para todos
+os usuários. O histórico fica vinculado ao contato (`whatsapp_messages`) e aparece na inbox, na tela
+do contato e na API.
+
+### ⚠️ Aviso de risco
+
+O pareamento por QR usa o protocolo do WhatsApp Web, que é **não oficial**. Mesmo com os cuidados
+abaixo existe **risco residual de bloqueio do número**:
+
+- use um número **dedicado**, nunca o número principal da empresa;
+- mantenha uso humano normal (não deixe o número parecer apenas um bot);
+- não faça disparos em massa e evite padrões repetitivos;
+- não envie para números que nunca tiveram contato;
+- evite recriar a instância ou gerar novos QR Codes sem necessidade — a sessão deve ficar estável.
+
+### 1. Subir a Evolution API
+
+O `docker-compose.yml` já inclui `evolution_api`, `evolution_db` (Postgres) e `evolution_redis`,
+todos com volumes persistentes:
+
+```bash
+docker compose up -d evolution_api evolution_db evolution_redis
+docker compose ps
+```
+
+A API fica disponível internamente em `http://evolution_api:8080` e, neste ambiente, também em
+`http://localhost:8080`.
+
+### 2. Configuração no Laravel
+
+Preencha no `.env` (valores secretos não devem ser commitados):
+
+```env
+EVOLUTION_API_URL=http://evolution_api:8080
+EVOLUTION_API_KEY=<chave-longa-e-aleatoria>
+EVOLUTION_DB_PASSWORD=<senha-longa-e-aleatoria>
+EVOLUTION_SERVER_URL=http://localhost:8080
+EVOLUTION_INSTANCE=crm
+EVOLUTION_WEBHOOK_TOKEN=<outro-token-longo-e-aleatorio>
+EVOLUTION_WEBHOOK_URL=http://host.docker.internal:8000/api/v1/whatsapp/webhook
+```
+
+Em produção, troque `EVOLUTION_WEBHOOK_URL` pela URL HTTPS pública do CRM. Depois:
+
+```bash
+docker exec laravel_app php artisan config:clear
+docker exec laravel_app php artisan migrate
+docker exec laravel_app php artisan queue:restart
+```
+
+Sem o worker rodando, as mensagens ficam com status **Na fila**:
+
+```bash
+docker exec laravel_app php artisan queue:work --tries=1
+```
+
+### 3. Parear o número (somente admin)
+
+1. Acesse o painel com um usuário `admin`.
+2. No menu lateral, abra **Conexão WhatsApp** (ou acesse `/whatsapp/conexao`).
+3. Clique em **Criar / configurar instância**. Isso cria a instância única e registra o webhook de
+   `MESSAGES_UPSERT` e `MESSAGES_UPDATE` com o header `X-Evolution-Token`.
+4. Escaneie o QR Code exibido: **WhatsApp no celular → Mais opções → Dispositivos conectados →
+   Adicionar dispositivo**.
+5. A página atualiza o status automaticamente. Quando mostrar **Conectado**, o número está pronto.
+
+Usuários `manager` e `sales_rep` recebem `403` nessa tela e no endpoint de QR.
+
+### 4. Uso
+
+- Painel: menu lateral → **WhatsApp** abre a inbox com a lista de conversas e a conversa selecionada
+  (`/whatsapp`). Também é possível abrir uma conversa específica em `/whatsapp/{contact}` ou pelo
+  detalhe do contato → **Conversa no WhatsApp**.
+- A inbox mostra os contatos do responsável definido no cadastro (`Responsável`). Usuários `admin` e
+  `manager` veem todas as conversas, inclusive contatos sem responsável. Novos contatos criados pelo
+  painel recebem automaticamente o usuário logado como responsável.
+- API (Sanctum):
+  - `GET /api/v1/contacts/{contact}/whatsapp-messages`
+  - `POST /api/v1/contacts/{contact}/whatsapp-messages` com `{"body": "..."}`
+
+Mensagens recebidas são ligadas ao contato pelo número cadastrado em `whatsapp`. Quando o número
+ainda não existe, o webhook cria o contato automaticamente na empresa sistema **WhatsApp (sistema)**
+com o primeiro administrador como responsável; o nome vem do `pushName` do WhatsApp e, na ausência
+dele, do próprio número. Assim o cliente novo já aparece na inbox e pode receber uma resposta humana.
+O webhook atualiza os status (`sent`, `delivered`, `read`). Mensagens `fromMe` enviadas pelo próprio
+aparelho aparecem na conversa como outbound, sem usuário do CRM associado; o `provider_message_id`
+único evita duplicar o que já foi enviado pelo sistema. Mensagens de grupo continuam sendo ignoradas.
+Mensagens de mídia aparecem na conversa como placeholder
+(`[Áudio]`, `[Imagem]`, `[Vídeo]`, `[Documento]`, `[Figurinha]`); o arquivo não é baixado. O
+`provider_message_id` único evita duplicidade no histórico e o ranking de status evita downgrade
+quando eventos chegam fora de ordem.
+
+> O envio continua enfileirado e sem retry automático do POST: como uma resposta perdida pode
+> fazer o cliente receber a mesma mensagem duas vezes.
+
 ## License

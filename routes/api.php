@@ -15,14 +15,16 @@ use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\ProposalController;
 use App\Http\Controllers\Api\V1\ProposalItemController;
 use App\Http\Controllers\Api\V1\SegmentController;
-use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\ServiceCategoryController;
+use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WhatsAppMessageController;
+use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    
+
     // Rota pública para teste de status
     Route::get('/status', function () {
         return response()->json(['status' => 'API v1 is running via Docker!']);
@@ -30,6 +32,11 @@ Route::prefix('v1')->group(function () {
 
     // Endpoint de health da API (público, sem autenticação)
     Route::get('/health', [HealthController::class, 'index']);
+
+    // Webhook da Evolution API: eventos recebidos (POST), público e protegido por token
+    Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle'])
+        ->middleware('throttle:60,1')
+        ->name('whatsapp.webhook.handle');
 
     // Autenticação - rotas públicas com throttle
     Route::middleware('throttle:5,1')->group(function () {
@@ -48,6 +55,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', function (Request $request) {
             return $request->user();
         });
+
+        // Histórico e envio de mensagens WhatsApp por contato
+        Route::get('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'index']);
+        Route::post('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'store']);
 
         // CRUD - Activities
         Route::apiResource('/activities', ActivityController::class);
