@@ -39,4 +39,12 @@ return [
         'base_url' => env('API_BASE_URL', 'http://localhost:8000'),
     ],
 
+    'evolution' => [
+        'url' => rtrim((string) env('EVOLUTION_API_URL', 'http://evolution_api:8080'), '/'),
+        'api_key' => env('EVOLUTION_API_KEY'),
+        'instance' => env('EVOLUTION_INSTANCE', 'crm'),
+        'webhook_token' => env('EVOLUTION_WEBHOOK_TOKEN'),
+        'webhook_url' => env('EVOLUTION_WEBHOOK_URL', 'http://host.docker.internal:8000/api/v1/whatsapp/webhook'),
+    ],
+
 ];
