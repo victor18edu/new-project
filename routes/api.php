@@ -56,6 +56,10 @@ Route::prefix('v1')->group(function () {
             return $request->user();
         });
 
+        // Histórico e envio de mensagens WhatsApp por contato
+        Route::get('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'index']);
+        Route::post('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'store']);
+
         // CRUD - Activities
         Route::apiResource('/activities', ActivityController::class);
 
