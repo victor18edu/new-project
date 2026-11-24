@@ -38,6 +38,30 @@
                 </svg>
                 Usuários
             </a>
+
+            <a href="{{ route('web.whatsapp.inbox') }}" @class([
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.*'),
+                'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.*'),
+            ])>
+                <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 11.25a8.25 8.25 0 01-11.7 7.5L3.75 20.25l1.5-4.8a8.25 8.25 0 1115-4.2z" />
+                </svg>
+                WhatsApp
+            </a>
+
+            @if (Auth::user()->role === 'admin')
+                <a href="{{ route('web.whatsapp.connection') }}" @class([
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                    'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.connection*'),
+                    'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.connection*'),
+                ])>
+                    <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5v2.25m7.5-2.25v2.25m-9.75 3h12a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-12A2.25 2.25 0 014.5 17.25v-7.5A2.25 2.25 0 016.75 7.5zm7.5 5.25h3m-3 3h3m-9-3h.008v.008H9.25V12.75zm0 3h.008v.008H9.25V15.75zm3-3h.008v.008H12.25V12.75z" />
+                    </svg>
+                    Conexão WhatsApp
+                </a>
+            @endif
         </div>
 
         @foreach (App\Support\CrmResources::grouped() as $group => $definitions)

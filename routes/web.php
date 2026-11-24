@@ -3,6 +3,9 @@
 use App\Http\Controllers\Web\CrmResourceController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\UserController;
+use App\Http\Controllers\Web\WhatsAppConnectionController;
+use App\Http\Controllers\Web\WhatsAppController;
+use App\Http\Controllers\Web\WhatsAppInboxController;
 use App\Support\CrmResources;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +19,25 @@ Route::middleware([
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('users', UserController::class)->names('web.users');
+
+    Route::get('whatsapp/conexao', [WhatsAppConnectionController::class, 'index'])
+        ->name('web.whatsapp.connection');
+    Route::post('whatsapp/conexao', [WhatsAppConnectionController::class, 'store'])
+        ->name('web.whatsapp.connection.store');
+    Route::get('whatsapp/conexao/qr', [WhatsAppConnectionController::class, 'qr'])
+        ->name('web.whatsapp.connection.qr');
+
+    Route::get('whatsapp', [WhatsAppInboxController::class, 'index'])
+        ->name('web.whatsapp.inbox');
+    Route::get('whatsapp/{contact}', [WhatsAppInboxController::class, 'show'])
+        ->name('web.whatsapp.inbox.contact');
+    Route::post('whatsapp/{contact}', [WhatsAppInboxController::class, 'store'])
+        ->name('web.whatsapp.inbox.store');
+
+    Route::get('contacts/{contact}/whatsapp', [WhatsAppController::class, 'show'])
+        ->name('web.contacts.whatsapp.show');
+    Route::post('contacts/{contact}/whatsapp', [WhatsAppController::class, 'store'])
+        ->name('web.contacts.whatsapp.store');
 
     foreach (CrmResources::all() as $key => $definition) {
         Route::get($key, [CrmResourceController::class, 'index'])->name("web.{$key}.index");
