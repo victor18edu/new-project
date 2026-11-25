@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\SendWhatsAppMessageRequest;
 use App\Models\Contact;
 use App\Models\CustomerCategory;
+use App\Models\User;
 use App\Models\WhatsAppMessage;
+use App\Support\OperatorRole;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,8 +25,10 @@ class WhatsAppInboxController extends Controller
 
     public function show(Request $request, Contact $contact): View
     {
+        Gate::authorize('viewInbox', Contact::class);
+
         $selected = $this->scopedContacts()->findOrFail($contact->getKey());
-        Gate::authorize('view', $selected);
+        Gate::authorize('viewConversation', $selected);
 
         return $this->renderInbox($request, $selected);
     }
@@ -34,20 +38,37 @@ class WhatsAppInboxController extends Controller
         Contact $contact,
         SendWhatsAppMessage $action
     ): RedirectResponse {
-        $this->scopedContacts()->findOrFail($contact->getKey());
-        Gate::authorize('update', $contact);
+        Gate::authorize('sendMessage', $contact);
 
+        $this->scopedContacts()->findOrFail($contact->getKey());
         $action->handle($contact, $request->validated()['body'], $request->user());
 
         return redirect()->route('web.whatsapp.inbox.contact', $contact)
             ->with('status', 'Mensagem enfileirada para envio.');
     }
 
+    public function assume(Contact $contact, StartWhatsAppAttendance $action): RedirectResponse
+    {
+        Gate::authorize('viewInbox', Contact::class);
+
+        $selected = $this->scopedContacts()->findOrFail($contact->getKey());
+        Gate::authorize('assign', $selected);
+
+        $action->handle($selected, auth()->user());
+
+        return redirect()->route('web.whatsapp.inbox.contact', $selected)
+            ->with('status', 'Atendimento assumido com sucesso.');
+    }
+
     private function renderInbox(Request $request, ?Contact $selected = null): View
     {
-        $search = trim((string) $request->query('q', ''));
+        Gate::authorize('viewInbox', Contact::class);
 
-        $contacts = $this->scopedContacts()
+        $search = trim((string) $request->query('q', ''));
+        $operatorId = (string) $request->query('operator_id', '');
+        $categoryId = (string) $request->query('customer_category_id', '');
+
+        $contacts = $this->scopedContacts($operatorId, $categoryId)
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('contacts.name', 'like', "%{$search}%")

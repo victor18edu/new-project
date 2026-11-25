@@ -14,10 +14,11 @@ class WhatsAppController extends Controller
 {
     public function show(Contact $contact): View
     {
-        Gate::authorize('view', $contact);
+        Gate::authorize('viewInbox', Contact::class);
+        Gate::authorize('viewConversation', $contact);
 
         $messages = $contact->whatsappMessages()
-            ->with('sender:id,name')
+            ->with(['sender:id,name', 'editor:id,name'])
             ->latest('created_at')
             ->latest('id')
             ->paginate(20)
@@ -38,6 +39,8 @@ class WhatsAppController extends Controller
         Contact $contact,
         SendWhatsAppMessage $action
     ): RedirectResponse {
+        Gate::authorize('sendMessage', $contact);
+
         $action->handle($contact, $request->validated()['body'], $request->user());
 
         return redirect()->route('web.contacts.whatsapp.show', $contact)

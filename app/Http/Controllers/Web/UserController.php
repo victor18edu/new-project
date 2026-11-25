@@ -12,6 +12,7 @@ use App\Models\OpportunityStageHistory;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Support\FormLimits;
+use App\Support\OperatorRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,12 +20,6 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    private const ROLES = [
-        'admin' => 'Administrador',
-        'manager' => 'Gerente',
-        'sales_rep' => 'Vendedor',
-    ];
-
     public function index(Request $request): View
     {
         Gate::authorize('viewAny', User::class);
@@ -40,7 +35,7 @@ class UserController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when(in_array($role, array_keys(self::ROLES), true), fn ($query) => $query->where('role', $role))
+            ->when(in_array($role, array_keys(OperatorRole::labels()), true), fn ($query) => $query->where('role', $role))
             ->when($status === 'active', fn ($query) => $query->where('is_active', true))
             ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
             ->orderBy('name')
@@ -49,7 +44,7 @@ class UserController extends Controller
 
         return view('users.index', [
             'users' => $users,
-            'roles' => self::ROLES,
+            'roles' => OperatorRole::labels(),
             'protectedUserId' => User::PROTECTED_ID,
             'filters' => [
                 'q' => $search,
@@ -64,7 +59,7 @@ class UserController extends Controller
         Gate::authorize('create', User::class);
 
         return view('users.create', [
-            'roles' => self::ROLES,
+            'roles' => OperatorRole::labels(),
             'limits' => FormLimits::from($request, StoreUserRequest::class),
         ]);
     }
@@ -85,7 +80,7 @@ class UserController extends Controller
 
         return view('users.show', [
             'user' => $user,
-            'roles' => self::ROLES,
+            'roles' => OperatorRole::labels(),
             'protectedUserId' => User::PROTECTED_ID,
         ]);
     }
@@ -96,7 +91,7 @@ class UserController extends Controller
 
         return view('users.edit', [
             'user' => $user,
-            'roles' => self::ROLES,
+            'roles' => OperatorRole::labels(),
             'protectedUserId' => User::PROTECTED_ID,
             'limits' => FormLimits::from($request, UpdateUserRequest::class),
         ]);

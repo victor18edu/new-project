@@ -6,6 +6,7 @@ use App\Models\CustomerCategory;
 use App\Models\User;
 use App\Policies\CrmPolicy;
 use App\Policies\UserPolicy;
+use App\Policies\WhatsAppOperatorPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -48,5 +49,6 @@ class AuthServiceProvider extends ServiceProvider
         foreach ($crmModels as $model) {
             Gate::policy($model, CrmPolicy::class);
         }
+        Gate::policy(Contact::class, WhatsAppOperatorPolicy::class);
     }
 }
