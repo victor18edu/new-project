@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\WhatsAppConnectionController;
 use App\Http\Controllers\Web\WhatsAppController;
+use App\Http\Controllers\Web\WhatsAppHistoryController;
 use App\Http\Controllers\Web\WhatsAppInboxController;
 use App\Support\CrmResources;
 use Illuminate\Support\Facades\Route;
@@ -29,10 +30,16 @@ Route::middleware([
 
     Route::get('whatsapp', [WhatsAppInboxController::class, 'index'])
         ->name('web.whatsapp.inbox');
+    Route::get('whatsapp/historico', [WhatsAppHistoryController::class, 'index'])
+        ->name('web.whatsapp.history');
+    Route::post('whatsapp/atendimentos/{attendance}/encerrar', [WhatsAppHistoryController::class, 'close'])
+        ->name('web.whatsapp.history.close');
     Route::get('whatsapp/{contact}', [WhatsAppInboxController::class, 'show'])
         ->name('web.whatsapp.inbox.contact');
     Route::post('whatsapp/{contact}', [WhatsAppInboxController::class, 'store'])
         ->name('web.whatsapp.inbox.store');
+    Route::post('whatsapp/{contact}/assumir', [WhatsAppInboxController::class, 'assume'])
+        ->name('web.whatsapp.inbox.assume');
 
     Route::get('contacts/{contact}/whatsapp', [WhatsAppController::class, 'show'])
         ->name('web.contacts.whatsapp.show');

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\SegmentController;
 use App\Http\Controllers\Api\V1\ServiceCategoryController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WhatsAppAttendanceController;
 use App\Http\Controllers\Api\V1\WhatsAppMessageController;
 use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
 use Illuminate\Http\Request;
@@ -60,6 +61,15 @@ Route::prefix('v1')->group(function () {
         // Histórico e envio de mensagens WhatsApp por contato
         Route::get('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'index']);
         Route::post('/contacts/{contact}/whatsapp-messages', [WhatsAppMessageController::class, 'store']);
+        Route::put('/contacts/{contact}/whatsapp-messages/{message}', [WhatsAppMessageController::class, 'update']);
+        Route::post('/contacts/{contact}/whatsapp-messages/{message}/retry', [WhatsAppMessageController::class, 'retry']);
+        Route::delete('/contacts/{contact}/whatsapp-messages/{message}', [WhatsAppMessageController::class, 'destroy']);
+
+        // Histórico de atendimentos WhatsApp
+        Route::get('/whatsapp-attendances', [WhatsAppAttendanceController::class, 'index']);
+        Route::post('/contacts/{contact}/whatsapp-attendances', [WhatsAppAttendanceController::class, 'store']);
+        Route::get('/whatsapp-attendances/{attendance}', [WhatsAppAttendanceController::class, 'show']);
+        Route::post('/whatsapp-attendances/{attendance}/close', [WhatsAppAttendanceController::class, 'close']);
 
         // CRUD - Activities
         Route::apiResource('/activities', ActivityController::class);

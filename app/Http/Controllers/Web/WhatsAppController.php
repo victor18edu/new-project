@@ -31,6 +31,10 @@ class WhatsAppController extends Controller
         return view('whatsapp.thread', [
             'contact' => $contact,
             'messages' => $messages,
+            'currentAttendance' => $contact->whatsappAttendances()
+                ->with('operator:id,name')
+                ->open()
+                ->first(),
         ]);
     }
 

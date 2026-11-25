@@ -64,4 +64,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(AuditLog::class, 'user_id');
     }
+
+    public function whatsappAttendances()
+    {
+        return $this->hasMany(WhatsAppAttendance::class, 'operator_id');
+    }
 }

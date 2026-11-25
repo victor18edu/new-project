@@ -69,4 +69,9 @@ class Contact extends BaseModel
     {
         return $this->hasMany(WhatsAppMessage::class, 'contact_id');
     }
+
+    public function whatsappAttendances(): HasMany
+    {
+        return $this->hasMany(WhatsAppAttendance::class, 'contact_id');
+    }
 }

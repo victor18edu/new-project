@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Models\CustomerCategory;
 use App\Models\User;
+use App\Models\WhatsAppAttendance;
 use App\Policies\CrmPolicy;
 use App\Policies\UserPolicy;
+use App\Policies\WhatsAppAttendancePolicy;
 use App\Policies\WhatsAppOperatorPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -50,5 +52,6 @@ class AuthServiceProvider extends ServiceProvider
             Gate::policy($model, CrmPolicy::class);
         }
         Gate::policy(Contact::class, WhatsAppOperatorPolicy::class);
+        Gate::policy(WhatsAppAttendance::class, WhatsAppAttendancePolicy::class);
     }
 }
