@@ -39,29 +39,72 @@
                 Usuários
             </a>
 
-            <a href="{{ route('web.whatsapp.inbox') }}" @class([
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
-                'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.*'),
-                'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.*'),
-            ])>
-                <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 11.25a8.25 8.25 0 01-11.7 7.5L3.75 20.25l1.5-4.8a8.25 8.25 0 1115-4.2z" />
-                </svg>
-                WhatsApp
-            </a>
+            @can('viewInbox', \App\Models\Contact::class)
+                <div x-data="{ whatsappOpen: {{ request()->routeIs('web.whatsapp.*') ? 'true' : 'false' }} }" class="space-y-1">
+                    <button type="button"
+                            @click="whatsappOpen = !whatsappOpen"
+                            :aria-expanded="whatsappOpen.toString()"
+                            aria-controls="whatsapp-submenu"
+                            @class([
+                                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                                'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.*'),
+                                'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.*'),
+                            ])>
+                        <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 11.25a8.25 8.25 0 01-11.7 7.5L3.75 20.25l1.5-4.8a8.25 8.25 0 1115-4.2z" />
+                        </svg>
+                        <span class="flex-1 text-start">WhatsApp</span>
+                        <svg class="size-4 shrink-0 transition-transform" :class="whatsappOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
+                        </svg>
+                    </button>
 
-            @if (Auth::user()->role === 'admin')
-                <a href="{{ route('web.whatsapp.connection') }}" @class([
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
-                    'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.connection*'),
-                    'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.connection*'),
-                ])>
-                    <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5v2.25m7.5-2.25v2.25m-9.75 3h12a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-12A2.25 2.25 0 014.5 17.25v-7.5A2.25 2.25 0 016.75 7.5zm7.5 5.25h3m-3 3h3m-9-3h.008v.008H9.25V12.75zm0 3h.008v.008H9.25V15.75zm3-3h.008v.008H12.25V12.75z" />
-                    </svg>
-                    Conexão WhatsApp
-                </a>
-            @endif
+                    <div id="whatsapp-submenu" x-cloak x-show="whatsappOpen" class="ms-4 space-y-1 border-l border-white/10 ps-3">
+                        @if (Auth::user()->role === 'admin')
+                            <a href="{{ route('web.whatsapp.connection') }}"
+                               @click="sidebarOpen = false"
+                               @class([
+                                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                                   'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.connection*'),
+                                   'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.connection*'),
+                               ])>
+                                <svg class="size-4 shrink-0 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5v2.25m7.5-2.25v2.25m-9.75 3h12a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-12A2.25 2.25 0 014.5 17.25v-7.5A2.25 2.25 0 016.75 7.5zm7.5 5.25h3m-3 3h3m-9-3h.008v.008H9.25V12.75zm0 3h.008v.008H9.25V15.75zm3-3h.008v.008H12.25V12.75z" />
+                                </svg>
+                                Conexão
+                            </a>
+                        @endif
+
+                        <a href="{{ route('web.whatsapp.inbox') }}"
+                           @click="sidebarOpen = false"
+                           @class([
+                               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                               'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.inbox*'),
+                               'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.inbox*'),
+                           ])>
+                            <svg class="size-4 shrink-0 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 11.25a8.25 8.25 0 01-11.7 7.5L3.75 20.25l1.5-4.8a8.25 8.25 0 1115-4.2z" />
+                            </svg>
+                            Conversas
+                        </a>
+
+                        @can('viewHistory', \App\Models\Contact::class)
+                            <a href="{{ route('web.whatsapp.history') }}"
+                               @click="sidebarOpen = false"
+                               @class([
+                                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                                   'bg-indigo-600 text-white' => request()->routeIs('web.whatsapp.history*'),
+                                   'text-slate-300 hover:bg-white/5 hover:text-white' => ! request()->routeIs('web.whatsapp.history*'),
+                               ])>
+                                <svg class="size-4 shrink-0 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Histórico
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            @endcan
         </div>
 
         @foreach (App\Support\CrmResources::grouped() as $group => $definitions)

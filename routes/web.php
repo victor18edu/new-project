@@ -35,6 +35,7 @@ Route::middleware([
         ->name('web.whatsapp.history');
     Route::post('whatsapp/atendimentos/{attendance}/encerrar', [WhatsAppHistoryController::class, 'close'])
         ->name('web.whatsapp.history.close');
+
     Route::get('whatsapp/{contact}', [WhatsAppInboxController::class, 'show'])
         ->name('web.whatsapp.inbox.contact');
     Route::post('whatsapp/{contact}', [WhatsAppInboxController::class, 'store'])
