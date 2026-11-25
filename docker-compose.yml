@@ -1,17 +1,27 @@
-version: '3.8'
+x-app: &app-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  working_dir: /var/www
+  volumes:
+    - .:/var/www
+  networks:
+    - backend_network
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *app-service
     container_name: laravel_app
     restart: unless-stopped
-    working_dir: /var/www
-    volumes:
-      - .:/var/www
-    networks:
-      - backend_network
+
+  queue:
+    <<: *app-service
+    container_name: laravel_queue
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --sleep=3 --queue=default
+    depends_on:
+      - app
+      - db
 
   web:
     image: nginx:alpine
