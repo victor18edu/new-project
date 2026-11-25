@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\CustomerCategory;
 use App\Models\User;
 use App\Policies\CrmPolicy;
 use App\Policies\UserPolicy;
@@ -41,6 +42,7 @@ class AuthServiceProvider extends ServiceProvider
             \App\Models\Segment::class,
             \App\Models\Service::class,
             \App\Models\ServiceCategory::class,
+            CustomerCategory::class,
         ];
 
         foreach ($crmModels as $model) {

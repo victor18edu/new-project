@@ -6,6 +6,7 @@ use App\Actions\SendWhatsAppMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\SendWhatsAppMessageRequest;
 use App\Models\Contact;
+use App\Models\CustomerCategory;
 use App\Models\WhatsAppMessage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -62,7 +63,7 @@ class WhatsAppInboxController extends Controller
             ->withQueryString();
 
         $messages = $selected?->whatsappMessages()
-            ->with('sender:id,name')
+            ->with(['sender:id,name', 'editor:id,name'])
             ->latest('created_at')
             ->latest('id')
             ->paginate(20)
@@ -79,25 +80,41 @@ class WhatsAppInboxController extends Controller
             'selected' => $selected,
             'messages' => $messages,
             'search' => $search,
+            'operatorId' => $operatorId,
+            'categoryId' => $categoryId,
+            'operators' => User::query()
+                ->whereIn('role', array_keys(OperatorRole::labels()))
+                ->orderBy('name')
+                ->pluck('name', 'id'),
+            'categories' => CustomerCategory::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name', 'id'),
+            'currentAttendance' => $selected?->whatsappAttendances()
+                ->with('operator:id,name')
+                ->open()
+                ->first(),
             'storeRoute' => $selected
                 ? route('web.whatsapp.inbox.store', $selected)
                 : null,
         ]);
     }
 
-    private function scopedContacts(): Builder
+    private function scopedContacts(string $operatorId = '', string $categoryId = ''): Builder
     {
+        // SoftDeletes excludes deleted messages automatically. The subquery is
+        // deliberately unaliased so the global scope keeps working.
         $latestMessages = WhatsAppMessage::query()
             ->select([
-                'wm.contact_id',
-                'wm.body as latest_body',
-                'wm.direction as latest_direction',
-                'wm.status as latest_status',
-                'wm.sent_at as latest_sent_at',
-                'wm.created_at as latest_created_at',
+                'whatsapp_messages.contact_id',
+                'whatsapp_messages.body as latest_body',
+                'whatsapp_messages.direction as latest_direction',
+                'whatsapp_messages.status as latest_status',
+                'whatsapp_messages.sent_at as latest_sent_at',
+                'whatsapp_messages.created_at as latest_created_at',
             ])
-            ->from('whatsapp_messages as wm')
-            ->whereRaw('wm.id = (select max(wm2.id) from whatsapp_messages as wm2 where wm2.contact_id = wm.contact_id)');
+            ->whereRaw('whatsapp_messages.id = (select max(wm2.id) from whatsapp_messages as wm2 '
+                .'where wm2.contact_id = whatsapp_messages.contact_id and wm2.deleted_at is null)');
 
         $query = Contact::query()
             ->select('contacts.*')
@@ -106,11 +123,13 @@ class WhatsAppInboxController extends Controller
                 $join->on('latest_message.contact_id', '=', 'contacts.id');
             })
             ->whereNotNull('contacts.whatsapp')
-            ->with(['company:id,trade_name', 'assignedUser:id,name']);
+            ->with(['company:id,trade_name', 'customerCategory:id,name', 'assignedUser:id,name'])
+            ->when($operatorId !== '', fn (Builder $query) => $query->where('contacts.assigned_user_id', $operatorId))
+            ->when($categoryId !== '', fn (Builder $query) => $query->where('contacts.customer_category_id', $categoryId));
 
         $user = auth()->user();
 
-        if (! in_array($user->role, ['admin', 'manager'], true)) {
+        if (! OperatorRole::canViewAllConversations($user)) {
             $query->where('contacts.assigned_user_id', $user->id);
         }
 

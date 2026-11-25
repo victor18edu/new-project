@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,12 +17,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'is_decision_maker',
     'is_primary',
     'company_id',
+    'customer_category_id',
     'assigned_user_id',
     'notes',
 ])]
 class Contact extends BaseModel
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'contacts';
 
@@ -36,6 +38,11 @@ class Contact extends BaseModel
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    public function customerCategory(): BelongsTo
+    {
+        return $this->belongsTo(CustomerCategory::class, 'customer_category_id');
     }
 
     public function assignedUser(): BelongsTo

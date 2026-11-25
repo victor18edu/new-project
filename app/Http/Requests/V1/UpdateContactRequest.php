@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\V1;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateContactRequest extends FormRequest
@@ -17,7 +18,7 @@ class UpdateContactRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -30,6 +31,7 @@ class UpdateContactRequest extends FormRequest
             'is_decision_maker' => 'sometimes|nullable|boolean',
             'is_primary' => 'sometimes|nullable|boolean',
             'company_id' => 'sometimes|required|exists:companies,id',
+            'customer_category_id' => 'sometimes|nullable|exists:customer_categories,id',
             'assigned_user_id' => 'sometimes|nullable|exists:users,id',
             'notes' => 'sometimes|nullable|string|max:1000',
         ];

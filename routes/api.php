@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\ActivityTypeController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ContactController;
+use App\Http\Controllers\Api\V1\CustomerCategoryController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\LeadSourceController;
 use App\Http\Controllers\Api\V1\LostReasonController;
@@ -71,6 +72,9 @@ Route::prefix('v1')->group(function () {
 
         // CRUD - Contacts
         Route::apiResource('/contacts', ContactController::class);
+
+        // CRUD - Customer Categories
+        Route::apiResource('/customer-categories', CustomerCategoryController::class);
 
         // CRUD - Lead Sources
         Route::apiResource('/lead-sources', LeadSourceController::class);

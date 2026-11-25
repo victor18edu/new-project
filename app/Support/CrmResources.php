@@ -6,6 +6,7 @@ use App\Http\Requests\V1\StoreActivityRequest;
 use App\Http\Requests\V1\StoreActivityTypeRequest;
 use App\Http\Requests\V1\StoreCompanyRequest;
 use App\Http\Requests\V1\StoreContactRequest;
+use App\Http\Requests\V1\StoreCustomerCategoryRequest;
 use App\Http\Requests\V1\StoreLeadSourceRequest;
 use App\Http\Requests\V1\StoreLostReasonRequest;
 use App\Http\Requests\V1\StoreOpportunityRequest;
@@ -21,6 +22,7 @@ use App\Http\Requests\V1\UpdateActivityRequest;
 use App\Http\Requests\V1\UpdateActivityTypeRequest;
 use App\Http\Requests\V1\UpdateCompanyRequest;
 use App\Http\Requests\V1\UpdateContactRequest;
+use App\Http\Requests\V1\UpdateCustomerCategoryRequest;
 use App\Http\Requests\V1\UpdateLeadSourceRequest;
 use App\Http\Requests\V1\UpdateLostReasonRequest;
 use App\Http\Requests\V1\UpdateOpportunityRequest;
@@ -36,6 +38,7 @@ use App\Models\Activity;
 use App\Models\ActivityType;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\CustomerCategory;
 use App\Models\LeadSource;
 use App\Models\LostReason;
 use App\Models\Opportunity;
@@ -274,6 +277,39 @@ final class CrmResources
                 gender: 'f',
             ),
 
+            'customer-categories' => new CrmResourceDefinition(
+                key: 'customer-categories',
+                label: 'Categorias de cliente',
+                singularLabel: 'Categoria de cliente',
+                group: 'Cadastros',
+                modelClass: CustomerCategory::class,
+                storeRequestClass: StoreCustomerCategoryRequest::class,
+                updateRequestClass: UpdateCustomerCategoryRequest::class,
+                columns: [
+                    ['label' => 'Nome', 'key' => 'name'],
+                    ['label' => 'Slug', 'key' => 'slug'],
+                    ['label' => 'Descrição', 'key' => 'description'],
+                    ['label' => 'Ativo', 'key' => 'is_active', 'format' => 'boolean'],
+                ],
+                fields: [
+                    ['name' => 'name', 'label' => 'Nome', 'required' => true],
+                    ['name' => 'slug', 'label' => 'Slug', 'required' => true],
+                    ['name' => 'description', 'label' => 'Descrição', 'type' => 'textarea'],
+                    ['name' => 'is_active', 'label' => 'Status', 'type' => 'checkbox', 'help' => 'Categoria ativa'],
+                ],
+                filters: [
+                    ['name' => 'is_active', 'label' => 'Status', 'options' => self::YES_NO],
+                ],
+                searchable: ['name', 'slug'],
+                dependencies: [
+                    ['model' => Contact::class, 'column' => 'customer_category_id', 'label' => 'contatos'],
+                ],
+                dependencyMessage: 'Não é possível remover esta categoria porque existem contatos vinculados.',
+                orderBy: 'name',
+                orderDirection: 'asc',
+                gender: 'f',
+            ),
+
             'services' => new CrmResourceDefinition(
                 key: 'services',
                 label: 'Serviços',
@@ -446,6 +482,7 @@ final class CrmResources
                 columns: [
                     ['label' => 'Nome', 'key' => 'name'],
                     ['label' => 'Empresa', 'key' => 'company.trade_name'],
+                    ['label' => 'Categoria', 'key' => 'customerCategory.name'],
                     ['label' => 'Cargo', 'key' => 'role_title'],
                     ['label' => 'E-mail', 'key' => 'email'],
                     ['label' => 'Telefone', 'key' => 'phone'],
@@ -455,6 +492,7 @@ final class CrmResources
                 fields: [
                     ['name' => 'name', 'label' => 'Nome', 'required' => true],
                     ['name' => 'company_id', 'label' => 'Empresa', 'type' => 'select', 'required' => true, 'options' => self::options(Company::class, 'trade_name')],
+                    ['name' => 'customer_category_id', 'label' => 'Categoria', 'type' => 'select', 'options' => self::options(CustomerCategory::class, 'name')],
                     ['name' => 'assigned_user_id', 'label' => 'Responsável', 'type' => 'select', 'options' => self::options(User::class, 'name')],
                     ['name' => 'role_title', 'label' => 'Cargo'],
                     ['name' => 'email', 'label' => 'E-mail', 'type' => 'email'],
@@ -466,10 +504,11 @@ final class CrmResources
                 ],
                 filters: [
                     ['name' => 'company_id', 'label' => 'Empresa', 'options' => self::options(Company::class, 'trade_name')],
+                    ['name' => 'customer_category_id', 'label' => 'Categoria', 'options' => self::options(CustomerCategory::class, 'name')],
                     ['name' => 'assigned_user_id', 'label' => 'Responsável', 'options' => self::options(User::class, 'name')],
                 ],
                 searchable: ['name', 'email', 'phone'],
-                with: ['company', 'assignedUser'],
+                with: ['company', 'customerCategory', 'assignedUser'],
                 seed: ['assigned_user_id' => fn () => auth()->id()],
                 orderBy: 'name',
                 orderDirection: 'asc',
