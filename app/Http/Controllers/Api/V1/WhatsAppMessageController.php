@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\DeleteWhatsAppMessage;
+use App\Actions\EditWhatsAppMessage;
+use App\Actions\RetryWhatsAppMessage;
 use App\Actions\SendWhatsAppMessage;
 use App\Http\Requests\V1\SendWhatsAppMessageRequest;
+use App\Http\Requests\V1\UpdateWhatsAppMessageRequest;
 use App\Models\Contact;
+use App\Models\WhatsAppMessage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class WhatsAppMessageController extends BaseApiController
@@ -14,7 +20,7 @@ class WhatsAppMessageController extends BaseApiController
         Gate::authorize('view', $contact);
 
         $messages = $contact->whatsappMessages()
-            ->with('sender:id,name')
+            ->with(['sender:id,name', 'editor:id,name'])
             ->latest('created_at')
             ->latest('id')
             ->paginate(20);
@@ -24,6 +30,8 @@ class WhatsAppMessageController extends BaseApiController
 
     public function store(SendWhatsAppMessageRequest $request, Contact $contact, SendWhatsAppMessage $action)
     {
+        Gate::authorize('sendMessage', $contact);
+
         $message = $action->handle($contact, $request->validated()['body'], $request->user());
         $message->refresh();
 
@@ -32,5 +40,53 @@ class WhatsAppMessageController extends BaseApiController
             data: $message,
             status: 201
         );
+    }
+
+    public function update(
+        UpdateWhatsAppMessageRequest $request,
+        Contact $contact,
+        WhatsAppMessage $message,
+        EditWhatsAppMessage $action
+    ) {
+        abort_unless($message->contact_id === $contact->id, 404);
+
+        Gate::authorize('update', $message);
+
+        $edited = $action->handle($message, $request->validated()['body'], $request->user());
+
+        return $this->successResponse(message: 'Mensagem editada no histórico.', data: $edited);
+    }
+
+    public function retry(
+        Contact $contact,
+        WhatsAppMessage $message,
+        RetryWhatsAppMessage $action
+    ) {
+        abort_unless($message->contact_id === $contact->id, 404);
+
+        Gate::authorize('retry', $message);
+
+        $retried = $action->handle($message);
+
+        return $this->successResponse(message: 'Mensagem reenfileirada para envio.', data: $retried);
+    }
+
+    public function destroy(
+        Request $request,
+        Contact $contact,
+        WhatsAppMessage $message,
+        DeleteWhatsAppMessage $action
+    ) {
+        abort_unless($message->contact_id === $contact->id, 404);
+
+        Gate::authorize('delete', $message);
+
+        $remoteStatus = $action->handle($message, $request->user());
+
+        return $this->successResponse(message: match ($remoteStatus) {
+            'deleted' => 'Mensagem apagada da conversa e do WhatsApp.',
+            'failed' => 'Mensagem apagada da conversa, mas não foi possível apagá-la no WhatsApp.',
+            default => 'Mensagem apagada da conversa.',
+        }, data: ['remote_delete' => $remoteStatus]);
     }
 }

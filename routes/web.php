@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\WhatsAppConnectionController;
 use App\Http\Controllers\Web\WhatsAppController;
 use App\Http\Controllers\Web\WhatsAppHistoryController;
 use App\Http\Controllers\Web\WhatsAppInboxController;
+use App\Http\Controllers\Web\WhatsAppMessageController;
 use App\Support\CrmResources;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,12 @@ Route::middleware([
         ->name('web.whatsapp.inbox.store');
     Route::post('whatsapp/{contact}/assumir', [WhatsAppInboxController::class, 'assume'])
         ->name('web.whatsapp.inbox.assume');
+    Route::put('whatsapp/{contact}/mensagens/{message}', [WhatsAppMessageController::class, 'update'])
+        ->name('web.whatsapp.messages.update');
+    Route::post('whatsapp/{contact}/mensagens/{message}/reenviar', [WhatsAppMessageController::class, 'retry'])
+        ->name('web.whatsapp.messages.retry');
+    Route::delete('whatsapp/{contact}/mensagens/{message}', [WhatsAppMessageController::class, 'destroy'])
+        ->name('web.whatsapp.messages.destroy');
 
     Route::get('contacts/{contact}/whatsapp', [WhatsAppController::class, 'show'])
         ->name('web.contacts.whatsapp.show');

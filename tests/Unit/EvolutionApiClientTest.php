@@ -136,6 +136,22 @@ class EvolutionApiClientTest extends TestCase
         (new EvolutionApiClient)->sendText('5511999999999', 'Olá');
     }
 
+    public function test_delete_for_everyone_sends_the_message_key_to_evolution(): void
+    {
+        Http::fake([
+            'evolution.test/chat/deleteMessageForEveryone/crm' => Http::response([], 200),
+        ]);
+
+        (new EvolutionApiClient)->deleteForEveryone('BAE123', '5511999999999@s.whatsapp.net', true);
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'http://evolution.test/chat/deleteMessageForEveryone/crm'
+            && $request->method() === 'DELETE'
+            && $request['id'] === 'BAE123'
+            && $request['remoteJid'] === '5511999999999@s.whatsapp.net'
+            && $request['fromMe'] === true
+            && $request->hasHeader('apikey', 'test-key'));
+    }
+
     public function test_requests_are_rejected_when_evolution_is_not_configured(): void
     {
         config()->set('services.evolution.api_key', null);

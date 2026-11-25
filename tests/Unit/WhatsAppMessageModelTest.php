@@ -61,6 +61,72 @@ class WhatsAppMessageModelTest extends TestCase
         $this->assertGreaterThan($rank[WhatsAppMessage::STATUS_READ], $rank[WhatsAppMessage::STATUS_FAILED]);
     }
 
+    public function test_casts_edited_at_and_deleted_at(): void
+    {
+        $message = WhatsAppMessage::create([
+            'contact_id' => $this->contact()->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'body' => 'Mensagem',
+        ]);
+        $editor = User::factory()->create();
+
+        $message->forceFill([
+            'edited_by' => $editor->id,
+            'edited_at' => '2026-11-25 10:00:00',
+            'deleted_by' => $editor->id,
+        ])->save();
+        $message->delete();
+        $message->refresh();
+
+        $this->assertInstanceOf(Carbon::class, $message->edited_at);
+        $this->assertSame('2026-11-25 10:00:00', $message->edited_at->toDateTimeString());
+        $this->assertInstanceOf(Carbon::class, $message->deleted_at);
+    }
+
+    public function test_editor_deleter_and_revision_relationships(): void
+    {
+        $editor = User::factory()->create();
+        $deleter = User::factory()->create();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $this->contact()->id,
+            'user_id' => User::factory()->create()->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'body' => 'Mensagem',
+        ]);
+        $revision = $message->revisions()->create([
+            'editor_id' => $editor->id,
+            'old_body' => 'Antes',
+            'new_body' => 'Depois',
+        ]);
+        $message->forceFill([
+            'edited_by' => $editor->id,
+            'deleted_by' => $deleter->id,
+        ])->save();
+
+        $this->assertSame($editor->id, $message->editor->id);
+        $this->assertSame($deleter->id, $message->deleter->id);
+        $this->assertSame($revision->id, $message->revisions->first()->id);
+        $this->assertSame($message->id, $revision->message->id);
+        $this->assertSame($editor->id, $revision->editor->id);
+    }
+
+    public function test_soft_deletes_hide_the_message_from_default_queries(): void
+    {
+        $message = WhatsAppMessage::create([
+            'contact_id' => $this->contact()->id,
+            'direction' => WhatsAppMessage::DIRECTION_INBOUND,
+            'status' => WhatsAppMessage::STATUS_RECEIVED,
+            'body' => 'Mensagem',
+        ]);
+
+        $message->delete();
+
+        $this->assertNull(WhatsAppMessage::find($message->id));
+        $this->assertNotNull(WhatsAppMessage::withTrashed()->find($message->id));
+    }
+
     private function contact(): Contact
     {
         return Contact::create([

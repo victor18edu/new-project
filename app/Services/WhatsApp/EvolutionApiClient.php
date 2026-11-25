@@ -81,6 +81,15 @@ class EvolutionApiClient
         return $providerMessageId;
     }
 
+    public function deleteForEveryone(string $id, string $remoteJid, bool $fromMe): void
+    {
+        $this->request()->delete($this->path("chat/deleteMessageForEveryone/{$this->instance()}"), [
+            'id' => $id,
+            'remoteJid' => $remoteJid,
+            'fromMe' => $fromMe,
+        ])->throw();
+    }
+
     private function request(): PendingRequest
     {
         $url = config('services.evolution.url');

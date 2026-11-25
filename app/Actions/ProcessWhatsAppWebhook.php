@@ -119,9 +119,13 @@ final class ProcessWhatsAppWebhook
             return;
         }
 
-        $message = WhatsAppMessage::where('provider_message_id', $providerMessageId)->first();
+        $message = WhatsAppMessage::withTrashed()
+            ->where('provider_message_id', $providerMessageId)
+            ->first();
 
-        if (! $message) {
+        if (! $message || $message->trashed()) {
+            // Deleted messages are kept for audit only; webhooks must not
+            // change or resurrect them.
             return;
         }
 
@@ -166,19 +170,23 @@ final class ProcessWhatsAppWebhook
         }
 
         DB::transaction(function () use ($providerMessageId, $normalized, $message, $content, $from): void {
+            // A deleted message stays deleted; do not recreate it from a
+            // retried webhook delivery.
+            if (WhatsAppMessage::withTrashed()->where('provider_message_id', $providerMessageId)->exists()) {
+                return;
+            }
+
             $contact = $this->resolveContact($normalized, $message);
 
-            WhatsAppMessage::firstOrCreate(
-                ['provider_message_id' => $providerMessageId],
-                [
-                    'contact_id' => $contact->id,
-                    'direction' => WhatsAppMessage::DIRECTION_INBOUND,
-                    'status' => WhatsAppMessage::STATUS_RECEIVED,
-                    'body' => $content['body'],
-                    'sent_at' => $this->timestamp(data_get($message, 'messageTimestamp')),
-                    'metadata' => ['from' => $from, 'message_type' => $content['type']],
-                ]
-            );
+            WhatsAppMessage::create([
+                'provider_message_id' => $providerMessageId,
+                'contact_id' => $contact->id,
+                'direction' => WhatsAppMessage::DIRECTION_INBOUND,
+                'status' => WhatsAppMessage::STATUS_RECEIVED,
+                'body' => $content['body'],
+                'sent_at' => $this->timestamp(data_get($message, 'messageTimestamp')),
+                'metadata' => ['from' => $from, 'message_type' => $content['type']],
+            ]);
         });
     }
 
@@ -209,25 +217,27 @@ final class ProcessWhatsAppWebhook
         }
 
         DB::transaction(function () use ($providerMessageId, $normalized, $message, $content, $to): void {
+            if (WhatsAppMessage::withTrashed()->where('provider_message_id', $providerMessageId)->exists()) {
+                return;
+            }
+
             // pushName identifies the phone owner, not the recipient.
             $contact = $this->resolveContact($normalized, []);
 
-            WhatsAppMessage::firstOrCreate(
-                ['provider_message_id' => $providerMessageId],
-                [
-                    'contact_id' => $contact->id,
-                    'user_id' => null,
-                    'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
-                    'status' => WhatsAppMessage::STATUS_SENT,
-                    'body' => $content['body'],
-                    'sent_at' => $this->timestamp(data_get($message, 'messageTimestamp')),
-                    'metadata' => [
-                        'to' => $to,
-                        'message_type' => $content['type'],
-                        'source' => 'phone_echo',
-                    ],
-                ]
-            );
+            WhatsAppMessage::create([
+                'provider_message_id' => $providerMessageId,
+                'contact_id' => $contact->id,
+                'user_id' => null,
+                'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+                'status' => WhatsAppMessage::STATUS_SENT,
+                'body' => $content['body'],
+                'sent_at' => $this->timestamp(data_get($message, 'messageTimestamp')),
+                'metadata' => [
+                    'to' => $to,
+                    'message_type' => $content['type'],
+                    'source' => 'phone_echo',
+                ],
+            ]);
         });
     }
 

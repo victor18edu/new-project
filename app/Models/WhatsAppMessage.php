@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'contact_id',
@@ -18,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class WhatsAppMessage extends Model
 {
+    use SoftDeletes;
+
     public const DIRECTION_INBOUND = 'inbound';
 
     public const DIRECTION_OUTBOUND = 'outbound';
@@ -45,8 +49,9 @@ class WhatsAppMessage extends Model
     ];
 
     /**
-     * Message history is an append-only log. It intentionally does not extend
-     * BaseModel so message bodies are not duplicated into the audit trail.
+     * Messages can be edited or hidden from the conversation, but the original
+     * text is kept in revisions. It intentionally does not extend BaseModel so
+     * message bodies are not duplicated into the audit trail.
      */
     protected $table = 'whatsapp_messages';
 
@@ -54,6 +59,7 @@ class WhatsAppMessage extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'edited_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -66,5 +72,20 @@ class WhatsAppMessage extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function editor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'edited_by');
+    }
+
+    public function deleter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(WhatsAppMessageRevision::class, 'message_id');
     }
 }

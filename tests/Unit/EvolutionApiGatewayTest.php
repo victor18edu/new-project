@@ -23,4 +23,17 @@ class EvolutionApiGatewayTest extends TestCase
         $this->assertInstanceOf(WhatsAppGateway::class, $gateway);
         $this->assertSame('BAE456', $gateway->send('+5511999999999', 'Olá'));
     }
+
+    public function test_gateway_delegates_delete_for_everyone_to_the_client(): void
+    {
+        $client = Mockery::mock(EvolutionApiClient::class);
+        $client->shouldReceive('deleteForEveryone')
+            ->once()
+            ->with('BAE456', '5511999999999@s.whatsapp.net', true);
+
+        $gateway = new EvolutionApiGateway($client);
+
+        $this->assertInstanceOf(WhatsAppGateway::class, $gateway);
+        $gateway->deleteForEveryone('BAE456', '5511999999999@s.whatsapp.net', true);
+    }
 }

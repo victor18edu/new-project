@@ -12,4 +12,9 @@ class EvolutionApiGateway implements WhatsAppGateway
     {
         return $this->client->sendText($to, $body);
     }
+
+    public function deleteForEveryone(string $id, string $remoteJid, bool $fromMe): void
+    {
+        $this->client->deleteForEveryone($id, $remoteJid, $fromMe);
+    }
 }
