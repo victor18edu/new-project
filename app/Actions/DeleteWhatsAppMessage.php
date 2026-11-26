@@ -5,7 +5,7 @@ namespace App\Actions;
 use App\Contracts\WhatsAppGateway;
 use App\Models\User;
 use App\Models\WhatsAppMessage;
-use App\Support\WhatsAppPhone;
+use App\Support\WhatsAppMessageTarget;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -40,7 +40,7 @@ final class DeleteWhatsAppMessage
             return 'skipped';
         }
 
-        $remoteJid = $this->remoteJid($message);
+        $remoteJid = WhatsAppMessageTarget::remoteJid($message);
 
         if ($remoteJid === null) {
             return 'skipped';
@@ -62,27 +62,5 @@ final class DeleteWhatsAppMessage
         }
 
         return 'deleted';
-    }
-
-    private function remoteJid(WhatsAppMessage $message): ?string
-    {
-        $metadata = $message->metadata ?? [];
-        $phone = $message->direction === WhatsAppMessage::DIRECTION_OUTBOUND
-            ? ($metadata['to'] ?? null)
-            : ($metadata['from'] ?? null);
-
-        if (! is_string($phone) || $phone === '') {
-            $phone = WhatsAppPhone::normalize($message->contact?->whatsapp);
-        }
-
-        if ($phone === null || $phone === '') {
-            return null;
-        }
-
-        if (str_contains($phone, '@')) {
-            return $phone;
-        }
-
-        return ltrim($phone, '+').'@s.whatsapp.net';
     }
 }

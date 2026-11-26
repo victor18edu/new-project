@@ -81,6 +81,19 @@ class EvolutionApiClient
         return $providerMessageId;
     }
 
+    public function updateMessage(string $id, string $remoteJid, string $number, string $body): void
+    {
+        $this->request()->post($this->path("chat/updateMessage/{$this->instance()}"), [
+            'number' => ltrim($number, '+'),
+            'key' => [
+                'remoteJid' => $remoteJid,
+                'fromMe' => true,
+                'id' => $id,
+            ],
+            'text' => $body,
+        ])->throw();
+    }
+
     public function deleteForEveryone(string $id, string $remoteJid, bool $fromMe): void
     {
         $this->request()->delete($this->path("chat/deleteMessageForEveryone/{$this->instance()}"), [

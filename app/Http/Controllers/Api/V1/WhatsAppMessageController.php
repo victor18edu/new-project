@@ -6,6 +6,7 @@ use App\Actions\DeleteWhatsAppMessage;
 use App\Actions\EditWhatsAppMessage;
 use App\Actions\RetryWhatsAppMessage;
 use App\Actions\SendWhatsAppMessage;
+use App\Exceptions\WhatsAppRemoteEditFailed;
 use App\Http\Requests\V1\SendWhatsAppMessageRequest;
 use App\Http\Requests\V1\UpdateWhatsAppMessageRequest;
 use App\Models\Contact;
@@ -52,9 +53,21 @@ class WhatsAppMessageController extends BaseApiController
 
         Gate::authorize('update', $message);
 
-        $edited = $action->handle($message, $request->validated()['body'], $request->user());
+        try {
+            $edited = $action->handle($message, $request->validated()['body'], $request->user());
+        } catch (WhatsAppRemoteEditFailed $exception) {
+            return $this->errorResponse(message: $exception->getMessage(), status: 502);
+        }
 
-        return $this->successResponse(message: 'Mensagem editada no histórico.', data: $edited);
+        $remoteEdit = data_get($edited->metadata, 'remote_edit');
+
+        return $this->successResponse(
+            message: match ($remoteEdit) {
+                'edited' => 'Mensagem editada no WhatsApp.',
+                default => 'Mensagem editada localmente; ainda não foi enviada.',
+            },
+            data: array_merge($edited->toArray(), ['remote_edit' => $remoteEdit]),
+        );
     }
 
     public function retry(

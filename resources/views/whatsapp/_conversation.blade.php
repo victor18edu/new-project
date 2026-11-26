@@ -36,6 +36,10 @@
                                     <textarea x-model="body" name="body" rows="3" maxlength="4096" required
                                               class="block w-full min-w-[16rem] rounded-lg border-slate-300 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
 
+                                    @if (filled($message->provider_message_id))
+                                        <p class="text-xs opacity-70">Ao salvar, a edição também será aplicada no WhatsApp.</p>
+                                    @endif
+
                                     <div class="flex justify-end gap-2">
                                         <button type="button" @click="editing = false"
                                                 class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-white/60">
@@ -56,7 +60,7 @@
                                     · {{ $message->sender->name }}
                                 @endif
                                 @if ($message->edited_at)
-                                    · editado
+                                    · @if (($message->metadata['remote_edit'] ?? null) === 'edited') editado no WhatsApp @else editado localmente @endif
                                     @if ($message->editor)
                                         por {{ $message->editor->name }}
                                     @endif

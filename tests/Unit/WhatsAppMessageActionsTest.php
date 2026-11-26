@@ -6,6 +6,7 @@ use App\Actions\DeleteWhatsAppMessage;
 use App\Actions\EditWhatsAppMessage;
 use App\Actions\RetryWhatsAppMessage;
 use App\Contracts\WhatsAppGateway;
+use App\Exceptions\WhatsAppRemoteEditFailed;
 use App\Jobs\SendWhatsAppMessageJob;
 use App\Models\Contact;
 use App\Models\User;
@@ -23,16 +24,17 @@ class WhatsAppMessageActionsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_edit_creates_a_revision_and_updates_the_message(): void
+    public function test_edit_creates_a_revision_and_updates_a_queued_message_locally(): void
     {
         $message = $this->message('Texto original');
         $editor = User::factory()->create();
 
-        $edited = (new EditWhatsAppMessage)->handle($message, 'Texto novo', $editor);
+        $edited = (new EditWhatsAppMessage($this->gateway()))->handle($message, 'Texto novo', $editor);
 
         $this->assertSame('Texto novo', $edited->body);
         $this->assertSame($editor->id, $edited->edited_by);
         $this->assertInstanceOf(Carbon::class, $edited->edited_at);
+        $this->assertSame('skipped', $edited->metadata['remote_edit']);
         $this->assertDatabaseHas('whatsapp_message_revisions', [
             'message_id' => $message->id,
             'editor_id' => $editor->id,
@@ -45,7 +47,7 @@ class WhatsAppMessageActionsTest extends TestCase
     {
         $message = $this->message('Texto original');
         $editor = User::factory()->create();
-        $action = new EditWhatsAppMessage;
+        $action = new EditWhatsAppMessage($this->gateway());
 
         $action->handle($message, 'Primeira edição', $editor);
         $action->handle($message, 'Segunda edição', $editor);
@@ -60,10 +62,92 @@ class WhatsAppMessageActionsTest extends TestCase
         $this->assertSame('Segunda edição', $message->fresh()->body);
     }
 
+    public function test_edit_updates_a_sent_message_on_whatsapp_before_saving_the_revision(): void
+    {
+        $message = $this->message('Texto original', [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+        $editor = User::factory()->create();
+        $gateway = Mockery::mock(WhatsAppGateway::class);
+        $gateway->shouldReceive('updateMessage')
+            ->once()
+            ->with('BAE123', '5511999999999@s.whatsapp.net', '5511999999999', 'Texto novo');
+
+        $edited = (new EditWhatsAppMessage($gateway))->handle($message, 'Texto novo', $editor);
+
+        $this->assertSame('Texto novo', $edited->body);
+        $this->assertSame($editor->id, $edited->edited_by);
+        $this->assertInstanceOf(Carbon::class, $edited->edited_at);
+        $this->assertSame('edited', $edited->metadata['remote_edit']);
+        $this->assertDatabaseHas('whatsapp_message_revisions', [
+            'message_id' => $message->id,
+            'editor_id' => $editor->id,
+            'old_body' => 'Texto original',
+            'new_body' => 'Texto novo',
+        ]);
+    }
+
+    public function test_edit_does_not_save_anything_when_whatsapp_rejects_the_change(): void
+    {
+        $message = $this->message('Texto original', [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+        $gateway = Mockery::mock(WhatsAppGateway::class);
+        $gateway->shouldReceive('updateMessage')
+            ->once()
+            ->with('BAE123', '5511999999999@s.whatsapp.net', '5511999999999', 'Texto novo')
+            ->andThrow(new RuntimeException('Evolution recusou a edição.'));
+
+        try {
+            (new EditWhatsAppMessage($gateway))->handle($message, 'Texto novo', User::factory()->create());
+            $this->fail('A edição não deveria ser salva quando a Evolution falha.');
+        } catch (WhatsAppRemoteEditFailed $exception) {
+            $this->assertSame(
+                WhatsAppRemoteEditFailed::MESSAGE,
+                $exception->getMessage(),
+            );
+        }
+
+        $fresh = $message->fresh();
+        $this->assertSame('Texto original', $fresh->body);
+        $this->assertNull($fresh->edited_by);
+        $this->assertNull($fresh->edited_at);
+        $this->assertArrayNotHasKey('remote_edit', $fresh->metadata);
+        $this->assertDatabaseMissing('whatsapp_message_revisions', ['message_id' => $message->id]);
+    }
+
+    public function test_edit_fails_when_a_sent_message_has_no_whatsapp_target(): void
+    {
+        $message = $this->message('Texto original', [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAE123',
+            'contact' => Contact::factory()->create(['whatsapp' => null]),
+        ]);
+        $gateway = Mockery::mock(WhatsAppGateway::class);
+        $gateway->shouldNotReceive('updateMessage');
+
+        try {
+            (new EditWhatsAppMessage($gateway))->handle($message, 'Texto novo', User::factory()->create());
+            $this->fail('A edição não deveria ser salva sem um destinatário no WhatsApp.');
+        } catch (WhatsAppRemoteEditFailed $exception) {
+            $this->assertSame(
+                WhatsAppRemoteEditFailed::MESSAGE,
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame('Texto original', $message->fresh()->body);
+        $this->assertDatabaseMissing('whatsapp_message_revisions', ['message_id' => $message->id]);
+    }
+
     public function test_delete_soft_deletes_the_message_and_records_the_deleter(): void
     {
         $message = $this->message('Texto original');
-        (new EditWhatsAppMessage)->handle($message, 'Texto editado', User::factory()->create());
+        (new EditWhatsAppMessage($this->gateway()))->handle($message, 'Texto editado', User::factory()->create());
         $deleter = User::factory()->create();
 
         (new DeleteWhatsAppMessage($this->gateway()))->handle($message, $deleter);
@@ -157,6 +241,7 @@ class WhatsAppMessageActionsTest extends TestCase
     private function gateway(): WhatsAppGateway
     {
         $gateway = Mockery::mock(WhatsAppGateway::class);
+        $gateway->shouldNotReceive('updateMessage');
         $gateway->shouldNotReceive('deleteForEveryone');
 
         return $gateway;
@@ -165,8 +250,11 @@ class WhatsAppMessageActionsTest extends TestCase
     /** @param array<string, mixed> $attributes */
     private function message(string $body = 'Texto original', array $attributes = []): WhatsAppMessage
     {
+        $contact = $attributes['contact'] ?? Contact::factory()->create();
+        unset($attributes['contact']);
+
         return WhatsAppMessage::create(array_merge([
-            'contact_id' => Contact::factory()->create()->id,
+            'contact_id' => $contact->id,
             'user_id' => User::factory()->create()->id,
             'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
             'status' => WhatsAppMessage::STATUS_QUEUED,

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\ProcessWhatsAppWebhook;
+use App\Exceptions\WhatsAppRemoteEditFailed;
 use App\Jobs\SendWhatsAppMessageJob;
 use App\Models\Contact;
 use App\Models\User;
@@ -20,31 +21,44 @@ class WhatsAppMessageEditDeleteTest extends TestCase
 
     public function test_manager_can_edit_a_message_and_the_original_text_is_preserved(): void
     {
+        $this->configureEvolution();
         Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/updateMessage/crm' => Http::response([], 200),
+        ]);
         $manager = User::factory()->create(['role' => 'manager']);
         $sender = User::factory()->create();
         $message = $this->message($sender, [
             'status' => WhatsAppMessage::STATUS_SENT,
             'body' => 'Texto original',
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
         ]);
         Sanctum::actingAs($manager, ['*']);
 
         $this->putJson('/api/v1/contacts/'.$message->contact_id.'/whatsapp-messages/'.$message->id, [
             'body' => 'Texto corrigido',
-        ])->assertOk()->assertJsonPath('data.body', 'Texto corrigido');
+        ])->assertOk()
+            ->assertJsonPath('data.body', 'Texto corrigido')
+            ->assertJsonPath('data.remote_edit', 'edited')
+            ->assertJsonPath('message', 'Mensagem editada no WhatsApp.');
 
         $this->assertDatabaseHas('whatsapp_messages', [
             'id' => $message->id,
             'body' => 'Texto corrigido',
             'edited_by' => $manager->id,
         ]);
+        $this->assertSame('edited', $message->fresh()->metadata['remote_edit']);
         $this->assertDatabaseHas('whatsapp_message_revisions', [
             'message_id' => $message->id,
             'editor_id' => $manager->id,
             'old_body' => 'Texto original',
             'new_body' => 'Texto corrigido',
         ]);
-        Http::assertNothingSent();
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'http://evolution.test/chat/updateMessage/crm'
+            && $request->method() === 'POST'
+            && $request['text'] === 'Texto corrigido');
     }
 
     public function test_operator_can_edit_only_their_own_queued_or_failed_messages(): void
@@ -70,7 +84,8 @@ class WhatsAppMessageEditDeleteTest extends TestCase
 
         $this->putJson('/api/v1/contacts/'.$contact->id.'/whatsapp-messages/'.$queued->id, [
             'body' => 'Na fila (editada)',
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('data.remote_edit', 'skipped');
 
         $this->putJson('/api/v1/contacts/'.$contact->id.'/whatsapp-messages/'.$sent->id, [
             'body' => 'Não permitido',
@@ -95,6 +110,37 @@ class WhatsAppMessageEditDeleteTest extends TestCase
         $this->putJson('/api/v1/contacts/'.$message->contact_id.'/whatsapp-messages/'.$message->id, [
             'body' => 'Editando mensagem recebida',
         ])->assertForbidden();
+    }
+
+    public function test_api_edit_does_not_change_the_message_when_whatsapp_rejects_it(): void
+    {
+        $this->configureEvolution();
+        Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/updateMessage/crm' => Http::response(['error' => 'not-allowed'], 400),
+        ]);
+        $manager = User::factory()->create(['role' => 'admin']);
+        $message = $this->message(User::factory()->create(), [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'body' => 'Texto original',
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+        Sanctum::actingAs($manager, ['*']);
+
+        $this->putJson('/api/v1/contacts/'.$message->contact_id.'/whatsapp-messages/'.$message->id, [
+            'body' => 'Texto rejeitado',
+        ])->assertStatus(502)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', WhatsAppRemoteEditFailed::MESSAGE);
+
+        $fresh = $message->fresh();
+        $this->assertSame('Texto original', $fresh->body);
+        $this->assertNull($fresh->edited_by);
+        $this->assertNull($fresh->edited_at);
+        $this->assertArrayNotHasKey('remote_edit', $fresh->metadata);
+        $this->assertDatabaseMissing('whatsapp_message_revisions', ['message_id' => $message->id]);
+        Http::assertSentCount(1);
     }
 
     public function test_deleted_message_disappears_from_conversation_but_is_kept_for_audit(): void
@@ -159,6 +205,26 @@ class WhatsAppMessageEditDeleteTest extends TestCase
             ->assertSee('Mensagem com balão');
     }
 
+    public function test_web_bubble_shows_when_an_edit_reached_whatsapp(): void
+    {
+        $editor = User::factory()->create(['role' => 'manager']);
+        $message = $this->message(User::factory()->create(), [
+            'body' => 'Mensagem editada no celular',
+            'metadata' => ['remote_edit' => 'edited'],
+        ]);
+        $message->forceFill([
+            'edited_by' => $editor->id,
+            'edited_at' => now(),
+        ])->save();
+
+        $this->actingAs($editor)
+            ->get(route('web.contacts.whatsapp.show', $message->contact))
+            ->assertOk()
+            ->assertSee('editado no WhatsApp')
+            ->assertSee('por '.$editor->name)
+            ->assertSee('Mensagem editada no celular');
+    }
+
     public function test_web_actions_edit_and_delete_messages(): void
     {
         Http::preventStrayRequests();
@@ -169,7 +235,8 @@ class WhatsAppMessageEditDeleteTest extends TestCase
 
         $this->actingAs($manager)
             ->put(route('web.whatsapp.messages.update', [$message->contact, $message]), ['body' => 'Mensagem editada via painel'])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Mensagem editada localmente; ainda não foi enviada.');
 
         $this->assertDatabaseHas('whatsapp_messages', [
             'id' => $message->id,
@@ -182,6 +249,63 @@ class WhatsAppMessageEditDeleteTest extends TestCase
 
         $this->assertSoftDeleted('whatsapp_messages', ['id' => $message->id]);
         Http::assertNothingSent();
+    }
+
+    public function test_web_edit_uses_whatsapp_and_reports_success(): void
+    {
+        $this->configureEvolution();
+        Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/updateMessage/crm' => Http::response([], 200),
+        ]);
+        $manager = User::factory()->create(['role' => 'admin']);
+        $message = $this->message(User::factory()->create(), [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'body' => 'Mensagem original',
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+
+        $this->actingAs($manager)
+            ->put(route('web.whatsapp.messages.update', [$message->contact, $message]), ['body' => 'Mensagem corrigida'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Mensagem editada no WhatsApp.');
+
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'id' => $message->id,
+            'body' => 'Mensagem corrigida',
+            'edited_by' => $manager->id,
+        ]);
+        $this->assertSame('edited', $message->fresh()->metadata['remote_edit']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_web_edit_reports_remote_failure_without_changing_the_message(): void
+    {
+        $this->configureEvolution();
+        Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/updateMessage/crm' => Http::response(['error' => 'not-allowed'], 400),
+        ]);
+        $manager = User::factory()->create(['role' => 'manager']);
+        $message = $this->message(User::factory()->create(), [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'body' => 'Mensagem original',
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+
+        $this->actingAs($manager)
+            ->put(route('web.whatsapp.messages.update', [$message->contact, $message]), ['body' => 'Mensagem rejeitada'])
+            ->assertRedirect()
+            ->assertSessionHas('error', WhatsAppRemoteEditFailed::MESSAGE);
+
+        $fresh = $message->fresh();
+        $this->assertSame('Mensagem original', $fresh->body);
+        $this->assertNull($fresh->edited_by);
+        $this->assertArrayNotHasKey('remote_edit', $fresh->metadata);
+        $this->assertDatabaseMissing('whatsapp_message_revisions', ['message_id' => $message->id]);
+        Http::assertSentCount(1);
     }
 
     public function test_webhook_cannot_resurrect_or_update_a_deleted_message(): void
@@ -307,6 +431,13 @@ class WhatsAppMessageEditDeleteTest extends TestCase
             ->assertForbidden();
 
         Queue::assertNothingPushed();
+    }
+
+    private function configureEvolution(): void
+    {
+        config()->set('services.evolution.url', 'http://evolution.test');
+        config()->set('services.evolution.api_key', 'test-key');
+        config()->set('services.evolution.instance', 'crm');
     }
 
     /** @param array<string, mixed> $attributes */
