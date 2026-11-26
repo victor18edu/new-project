@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "entrypoint": "Dockerfile.vercel",
+      "runtime": "container",
+      "outputDirectory": "public"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": { "service": "app" } }
+  ],
+  "daemons": {
+    "queue-worker": {
+      "root": ".",
+      "entrypoint": "Dockerfile.vercel",
+      "command": ["php", "artisan", "queue:work", "--tries=3", "--sleep=3", "--queue=default"],
+      "instances": { "iad1": 1 },
+      "resources": { "requests": { "memory": "1Gi" } },
+      "terminationGracePeriodSeconds": 30
+    }
+  }
+}

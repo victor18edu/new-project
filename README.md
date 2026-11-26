@@ -198,4 +198,75 @@ quando eventos chegam fora de ordem.
 > O envio continua enfileirado e sem retry automático do POST: como uma resposta perdida pode
 > fazer o cliente receber a mesma mensagem duas vezes.
 
+## Deploy na Vercel (TiDB Cloud Starter)
+
+Os arquivos `Dockerfile.vercel`, `Caddyfile` e `vercel.json` publicam o CRM em um container
+FrankenPHP na Vercel. O banco é o **TiDB Cloud Starter** em modo **MySQL-compatible**: as
+migrations originais criam tabelas, índices, chaves estrangeiras e o usuário admin sem
+alteração de código. O worker de filas roda como **Vercel Daemon** (produção) e a Evolution API
+continua na sua máquina, atrás de um túnel HTTPS.
+
+### Variáveis de ambiente no Vercel
+
+Crie as variáveis para **Production** (e, se quiser, para Preview com valores próprios):
+
+| Variável | Valor |
+| --- | --- |
+| `APP_NAME` | Nome do CRM |
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `APP_URL` | `https://<seu-dominio>` |
+| `APP_KEY` | Novo `php artisan key:generate --show` (não reutilize a chave local) |
+| `DB_CONNECTION` | `mysql` |
+| `DB_HOST` | Endpoint público do TiDB Cloud |
+| `DB_PORT` | `4000` |
+| `DB_DATABASE` | `crm` |
+| `DB_USERNAME` | Usuário com prefixo do TiDB (`xxxxxx.root`) |
+| `DB_PASSWORD` | Senha forte gerada no TiDB |
+| `MYSQL_ATTR_SSL_CA` | `/etc/ssl/certs/ca-certificates.crt` |
+| `SESSION_DRIVER` | `database` |
+| `CACHE_STORE` | `database` |
+| `QUEUE_CONNECTION` | `database` |
+| `SESSION_SECURE_COOKIE` | `true` |
+| `LOG_CHANNEL` | `stderr` |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Usuário admin inicial (a migration cria/reseta a senha) |
+| `EVOLUTION_API_URL` | URL HTTPS do túnel da Evolution API |
+| `EVOLUTION_API_KEY` | Chave da Evolution API |
+| `EVOLUTION_INSTANCE` | Nome da instância |
+| `EVOLUTION_WEBHOOK_TOKEN` | Token usado no header do webhook |
+| `EVOLUTION_WEBHOOK_URL` | `https://<seu-dominio>/api/v1/whatsapp/webhook` |
+
+### Checklist manual
+
+1. Crie uma instância **TiDB Cloud Starter → MySQL compatible** (sem cartão). Gere a senha,
+   crie o database `crm` e libere o IP de origem. Como a Vercel não tem IP de saída fixo,
+   use `0.0.0.0/0` apenas no endpoint público, com senha forte e TLS obrigatório.
+2. Faça `git push origin deploy/vercel-tidb` e abra um PR. Após o merge, importe o repositório
+   na Vercel; ela deve detectar o Container runtime pelo `Dockerfile.vercel`.
+3. Configure as variáveis acima no projeto da Vercel.
+4. Rode as migrations **fora** do container, uma única vez, com as mesmas variáveis:
+   `php artisan migrate --force`. Não rode migrations no startup: várias instâncias podem subir
+   ao mesmo tempo. Confira com `php artisan migrate:status`.
+5. Faça um deploy de Preview e valide `GET /up`, `GET /api/v1/status`, login, um CRUD e o
+   webhook do WhatsApp com token válido e inválido. Depois promova para Production.
+6. Na sua máquina, suba os serviços locais da Evolution:
+   `docker compose up -d evolution_api evolution_db evolution_redis`. Crie um túnel HTTPS
+   gratuito (Cloudflare Tunnel é mais estável que ngrok, cuja URL muda ao reiniciar) apontando
+   para a porta da Evolution e use essa URL em `EVOLUTION_API_URL`.
+7. Registre o webhook na Evolution apontando para `EVOLUTION_WEBHOOK_URL` com o token configurado.
+   Gere o QRCode no painel do CRM e pareie o WhatsApp.
+8. Envie uma mensagem de teste: ela entra como **Na fila**, o daemon processa e o status muda
+   para **Enviada**. Acompanhe `vercel logs` e a aba de Daemons do projeto.
+
+### Desligar o worker depois
+
+O worker não faz parte da aplicação: é só um consumidor da tabela `jobs`. Para parar,
+altere `instances` para `{ "iad1": 0 }` em `vercel.json` (ou remova o bloco `daemons`) e
+redeploy. As mensagens pendentes ficam gravadas no banco e são processadas quando ele volta.
+Atenção: a cota Hobby de memória do Daemon encerra o worker por volta do dia 17 de cada mês
+(1 GiB 24/7). Para uso contínuo, mova o worker para um host sempre ligado.
+
+Para parar apenas o WhatsApp: `docker compose stop evolution_api evolution_db evolution_redis`.
+O CRM continua funcionando; ao voltar, pode ser necessário parear o QR novamente.
+
 ## License
