@@ -4,6 +4,7 @@
 .env.backup
 .env.production
 .env.*.local
+.env.vercel-import
 .phpactor.json
 .phpunit.result.cache
 /.codex

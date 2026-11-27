@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Services\WhatsApp\EvolutionApiClient;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -33,9 +34,7 @@ class WhatsAppConnectionController extends Controller
 
             $this->client->configureWebhook();
         } catch (Throwable $exception) {
-            Log::error('Falha ao configurar a conexão do WhatsApp.', [
-                'exception' => $exception::class,
-            ]);
+            $this->logFailure('Falha ao configurar a conexão do WhatsApp.', $exception);
 
             return redirect()->route('web.whatsapp.connection')
                 ->with('error', 'Não foi possível configurar a conexão. Verifique os logs e tente novamente.');
@@ -66,9 +65,7 @@ class WhatsAppConnectionController extends Controller
                 'instance' => config('services.evolution.instance'),
             ];
         } catch (Throwable $exception) {
-            Log::error('Falha ao consultar o status do WhatsApp.', [
-                'exception' => $exception::class,
-            ]);
+            $this->logFailure('Falha ao consultar o status do WhatsApp.', $exception);
 
             return [
                 'state' => 'error',
@@ -76,5 +73,22 @@ class WhatsAppConnectionController extends Controller
                 'instance' => config('services.evolution.instance'),
             ];
         }
+    }
+
+    private function logFailure(string $message, Throwable $exception): void
+    {
+        $context = ['exception' => $exception::class];
+
+        if ($exception instanceof RequestException) {
+            $response = $exception->response;
+
+            $context += [
+                'status' => $response->status(),
+                'url' => (string) $response->effectiveUri(),
+                'body' => mb_substr($response->body(), 0, 500),
+            ];
+        }
+
+        Log::error($message, $context);
     }
 }
