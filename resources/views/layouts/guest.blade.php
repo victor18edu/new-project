@@ -5,6 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
+        @include('components.loading-overlay-head')
+
         <title>@yield('title', config('app.name', 'Laravel'))</title>
 
         <!-- Fonts -->
@@ -18,7 +20,7 @@
         @livewireStyles
     </head>
     <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-        <div class="min-h-screen lg:grid lg:grid-cols-2">
+        <div class="min-h-screen lg:grid lg:grid-cols-2" data-loading-root>
             <!-- Painel de marca -->
             <aside class="relative hidden overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 px-12 py-14 text-white lg:flex lg:flex-col lg:justify-between">
                 <div class="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl"></div>
@@ -56,5 +58,7 @@
         </div>
 
         @livewireScripts
+
+        <x-loading-overlay />
     </body>
 </html>

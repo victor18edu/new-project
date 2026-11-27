@@ -6,16 +6,18 @@ const getCsrfToken = () => {
 const http = {
     async request(url, options = {}) {
         const token = getCsrfToken();
+        const { loading = true, ...fetchOptions } = options;
         const headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': token,
-            ...options.headers,
+            ...(loading ? {} : { 'X-Skip-Loading': '1' }),
+            ...fetchOptions.headers,
         };
 
         const config = {
-            ...options,
+            ...fetchOptions,
             headers,
         };
 
@@ -44,28 +46,30 @@ const http = {
         }
     },
 
-    async get(url, params = {}) {
+    async get(url, params = {}, options = {}) {
         const queryString = new URLSearchParams(params).toString();
         const fullUrl = queryString ? `${url}?${queryString}` : url;
-        return this.request(fullUrl, { method: 'GET' });
+        return this.request(fullUrl, { ...options, method: 'GET' });
     },
 
-    async post(url, data = {}) {
+    async post(url, data = {}, options = {}) {
         return this.request(url, {
+            ...options,
             method: 'POST',
             body: JSON.stringify(data),
         });
     },
 
-    async put(url, data = {}) {
+    async put(url, data = {}, options = {}) {
         return this.request(url, {
+            ...options,
             method: 'PUT',
             body: JSON.stringify(data),
         });
     },
 
-    async delete(url) {
-        return this.request(url, { method: 'DELETE' });
+    async delete(url, options = {}) {
+        return this.request(url, { ...options, method: 'DELETE' });
     },
 };
 

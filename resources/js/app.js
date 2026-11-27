@@ -1,4 +1,6 @@
 import './bootstrap';
+import '../css/loading-overlay.css';
+import './loading-overlay';
 import './phone-mask';
 import './numeric-mask';
 import './prevent-double-submit';
