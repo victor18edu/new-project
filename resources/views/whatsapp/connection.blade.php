@@ -8,7 +8,7 @@
 @endsection
 
 @section('content')
-    <div x-data="{ state: '{{ $state }}', qr: '{{ $qr ?? '' }}', async refresh() { const response = await fetch('{{ route('web.whatsapp.connection.qr') }}'); if (response.ok) { const data = await response.json(); this.state = data.state; this.qr = data.qr; } } }"
+    <div x-data="{ state: '{{ $state }}', qr: '{{ $qr ?? '' }}', async refresh() { const response = await fetch('{{ route('web.whatsapp.connection.qr') }}', { headers: { 'X-Skip-Loading': '1' } }); if (response.ok) { const data = await response.json(); this.state = data.state; this.qr = data.qr; } } }"
          x-init="setInterval(() => refresh(), 5000)"
          class="mx-auto max-w-3xl space-y-5">
 

@@ -5,13 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
+        @include('components.loading-overlay-head')
+
         <title>@yield('title', config('app.name', 'Laravel'))</title>
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
     <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased" x-data="{ sidebarOpen: false, confirmOpen: false, confirmMessage: '', confirmFormId: null }" @crm-confirm.window="confirmMessage = $event.detail.message; confirmFormId = $event.detail.formId; confirmOpen = true" @keydown.escape.window="confirmOpen = false">
-        <div class="min-h-screen lg:flex">
+        <div class="min-h-screen lg:flex" data-loading-root>
             <x-crm-navigation />
 
             <div class="flex min-h-screen flex-1 flex-col">
@@ -98,5 +100,7 @@
                 </div>
             </div>
         </div>
+
+        <x-loading-overlay />
     </body>
 </html>
