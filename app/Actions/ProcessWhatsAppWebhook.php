@@ -10,6 +10,7 @@ use App\Models\WhatsAppMessage;
 use App\Support\WhatsAppPhone;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 final class ProcessWhatsAppWebhook
@@ -40,6 +41,7 @@ final class ProcessWhatsAppWebhook
     public function handle(array $payload): void
     {
         $event = $payload['event'] ?? null;
+        $event = is_string($event) ? str_replace('_', '.', strtolower($event)) : null;
         $data = data_get($payload, 'data', []);
 
         if ($event === 'messages.upsert' && is_array($data)) {
@@ -54,8 +56,25 @@ final class ProcessWhatsAppWebhook
             return;
         }
 
+        if ($event === 'messages.delete' && is_array($data)) {
+            foreach ($this->normalizeDeletedKeys($data) as $key) {
+                $this->markDeletedFromPhone($this->providerIdFromKey($key));
+            }
+
+            return;
+        }
+
+        if ($event === 'messages.edited' && is_array($data)) {
+            foreach ($this->normalizeMessages($data) as $message) {
+                $this->applyEditedMessageFromPhone($message);
+            }
+
+            return;
+        }
+
         if ($event === 'messages.update' && is_array($data)) {
             foreach ($this->normalizeUpdates($data) as $update) {
+                $this->applyRemoteUpdate($update);
                 $this->applyStatus($update);
             }
         }
@@ -98,6 +117,215 @@ final class ProcessWhatsAppWebhook
         }
 
         return [$data];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeDeletedKeys(array $data): array
+    {
+        $keys = data_get($data, 'keys');
+
+        if (is_array($keys)) {
+            $data = $keys;
+        }
+
+        if (! array_is_list($data)) {
+            $data = [$data];
+        }
+
+        return array_values(array_filter($data, static fn (mixed $key): bool => is_array($key)));
+    }
+
+    /**
+     * @param  array<string, mixed>  $keyLike
+     */
+    private function providerIdFromKey(array $keyLike): ?string
+    {
+        $id = data_get($keyLike, 'key.id') ?? data_get($keyLike, 'id');
+
+        return is_string($id) && $id !== '' ? $id : null;
+    }
+
+    /**
+     * Apply edits and revocations emitted by the connected phone. Status-only
+     * updates are handled by applyStatus().
+     *
+     * @param  array<string, mixed>  $update
+     */
+    private function applyRemoteUpdate(array $update): void
+    {
+        $content = data_get($update, 'update.message');
+
+        if (! is_array($content)) {
+            $content = data_get($update, 'message');
+        }
+
+        $targetKey = data_get($content, 'protocolMessage.key')
+            ?? data_get($update, 'update.protocolMessage.key')
+            ?? data_get($update, 'key')
+            ?? [];
+
+        $targetId = is_array($targetKey) ? $this->providerIdFromKey($targetKey) : null;
+
+        if ($targetId === null) {
+            return;
+        }
+
+        if ($this->isRevoke(
+            is_array($content) ? $content : [],
+            data_get($update, 'update.messageStubType'),
+            data_get($update, 'update.messageStubParameters'),
+        )) {
+            $this->markDeletedFromPhone($targetId);
+
+            return;
+        }
+
+        if (! is_array($content)) {
+            return;
+        }
+
+        $edited = data_get($content, 'protocolMessage.editedMessage');
+
+        if (is_array($edited)) {
+            $content = $edited;
+        }
+
+        $body = $this->messageContent(['message' => $content]);
+
+        if ($body === null) {
+            // Recent WhatsApp versions may deliver edits as an encrypted
+            // envelope without the plaintext. Never overwrite the CRM with it.
+            Log::info('Edição do WhatsApp sem texto recuperável foi ignorada.', [
+                'provider_message_id' => $targetId,
+            ]);
+
+            return;
+        }
+
+        $this->applyEditedBody($targetId, $body['body']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $message
+     */
+    private function applyEditedMessageFromPhone(array $message): void
+    {
+        $protocol = data_get($message, 'message.protocolMessage');
+        $targetId = is_array($protocol)
+            ? $this->providerIdFromKey(data_get($protocol, 'key') ?? [])
+            : $this->providerIdFromKey($message);
+
+        if ($targetId === null) {
+            return;
+        }
+
+        $edited = is_array($protocol)
+            ? data_get($protocol, 'editedMessage')
+            : data_get($message, 'message');
+
+        if (! is_array($edited)) {
+            return;
+        }
+
+        $body = $this->messageContent(['message' => $edited]);
+
+        if ($body === null) {
+            Log::info('Edição do WhatsApp sem texto recuperável foi ignorada.', [
+                'provider_message_id' => $targetId,
+            ]);
+
+            return;
+        }
+
+        $this->applyEditedBody($targetId, $body['body']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $content
+     */
+    private function isRevoke(array $content, mixed $stubType, mixed $stubParameters): bool
+    {
+        $type = data_get($content, 'protocolMessage.type');
+
+        if ((is_string($type) && strtoupper($type) === 'REVOKE') || $type === 0) {
+            return true;
+        }
+
+        if ((is_string($stubType) && strtoupper($stubType) === 'REVOKE') || $stubType === 1) {
+            return true;
+        }
+
+        if (is_array($stubParameters)) {
+            foreach ($stubParameters as $parameter) {
+                if (is_string($parameter) && strtoupper($parameter) === 'REVOKE') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function applyEditedBody(string $providerMessageId, string $body): void
+    {
+        $message = WhatsAppMessage::where('provider_message_id', $providerMessageId)->first();
+
+        if (! $message || $message->trashed() || $message->body === $body) {
+            return;
+        }
+
+        $metadata = $message->metadata ?? [];
+
+        // A local edit that could not reach WhatsApp must not be silently
+        // replaced by a later phone event.
+        if (($metadata['remote_edit'] ?? null) === 'failed') {
+            return;
+        }
+
+        DB::transaction(function () use ($message, $body, $metadata): void {
+            $message->revisions()->create([
+                'editor_id' => null,
+                'old_body' => $message->body,
+                'new_body' => $body,
+            ]);
+
+            $metadata['remote_edit'] = 'edited';
+            $metadata['remote_edit_source'] = 'phone';
+
+            $message->forceFill([
+                'body' => $body,
+                'edited_at' => now(),
+                'metadata' => $metadata,
+            ])->save();
+        });
+    }
+
+    private function markDeletedFromPhone(?string $providerMessageId): void
+    {
+        if ($providerMessageId === null) {
+            return;
+        }
+
+        $message = WhatsAppMessage::withTrashed()
+            ->where('provider_message_id', $providerMessageId)
+            ->first();
+
+        if (! $message || $message->trashed()) {
+            return;
+        }
+
+        DB::transaction(function () use ($message): void {
+            $metadata = $message->metadata ?? [];
+            $metadata['remote_delete'] = 'deleted';
+            $metadata['remote_delete_source'] = 'phone';
+
+            // Soft delete keeps the message in the audit history.
+            $message->forceFill(['metadata' => $metadata])->save();
+            $message->delete();
+        });
     }
 
     /**

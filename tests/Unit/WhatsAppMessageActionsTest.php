@@ -187,7 +187,7 @@ class WhatsAppMessageActionsTest extends TestCase
         $this->assertSame('deleted', $message->refresh()->metadata['remote_delete']);
     }
 
-    public function test_delete_still_hides_the_message_when_whatsapp_revocation_fails(): void
+    public function test_delete_keeps_the_message_when_whatsapp_revocation_fails(): void
     {
         $message = $this->message('Texto original', [
             'provider_message_id' => 'BAE123',
@@ -202,8 +202,29 @@ class WhatsAppMessageActionsTest extends TestCase
         $status = (new DeleteWhatsAppMessage($gateway))->handle($message, User::factory()->create());
 
         $this->assertSame('failed', $status);
-        $this->assertSoftDeleted($message);
-        $this->assertSame('failed', $message->refresh()->metadata['remote_delete']);
+        $this->assertNotSoftDeleted($message);
+        $this->assertSame('Texto original', $message->fresh()->body);
+
+        $metadata = $message->fresh()->metadata;
+        $this->assertSame('failed', $metadata['remote_delete']);
+        $this->assertNull($message->fresh()->deleted_by);
+    }
+
+    public function test_delete_does_not_pretend_an_inbound_message_was_revoked(): void
+    {
+        $message = $this->message('Texto recebido', [
+            'direction' => WhatsAppMessage::DIRECTION_INBOUND,
+            'provider_message_id' => 'BAEIN',
+            'metadata' => ['from' => '5511999999999'],
+        ]);
+        $gateway = Mockery::mock(WhatsAppGateway::class);
+        $gateway->shouldNotReceive('deleteForEveryone');
+
+        $status = (new DeleteWhatsAppMessage($gateway))->handle($message, User::factory()->create());
+
+        $this->assertSame('failed', $status);
+        $this->assertNotSoftDeleted($message);
+        $this->assertSame('not_from_me', $message->fresh()->metadata['remote_delete_reason']);
     }
 
     public function test_retry_requeues_a_failed_message_without_creating_a_duplicate(): void

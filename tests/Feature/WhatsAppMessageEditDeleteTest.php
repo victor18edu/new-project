@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\DeleteWhatsAppMessage;
 use App\Actions\ProcessWhatsAppWebhook;
 use App\Exceptions\WhatsAppRemoteEditFailed;
 use App\Jobs\SendWhatsAppMessageJob;
@@ -168,6 +169,54 @@ class WhatsAppMessageEditDeleteTest extends TestCase
             ->assertSee('Mensagem que some da conversa');
 
         Http::assertNothingSent();
+    }
+
+    public function test_api_keeps_the_message_and_reports_error_when_remote_delete_fails(): void
+    {
+        $this->configureEvolution();
+        Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/deleteMessageForEveryone/crm' => Http::response(['error' => 'conflict'], 408),
+        ]);
+        $manager = User::factory()->create(['role' => 'admin']);
+        $message = $this->message($manager, [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+        Sanctum::actingAs($manager, ['*']);
+
+        $this->deleteJson('/api/v1/contacts/'.$message->contact_id.'/whatsapp-messages/'.$message->id)
+            ->assertStatus(502)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', DeleteWhatsAppMessage::FAILED_MESSAGE)
+            ->assertJsonPath('data.remote_delete', 'failed');
+
+        $this->assertNotSoftDeleted('whatsapp_messages', ['id' => $message->id]);
+        $this->assertSame(408, $message->fresh()->metadata['remote_delete_status']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_web_delete_reports_error_without_hiding_the_message(): void
+    {
+        $this->configureEvolution();
+        Http::preventStrayRequests();
+        Http::fake([
+            'evolution.test/chat/deleteMessageForEveryone/crm' => Http::response([], 500),
+        ]);
+        $manager = User::factory()->create(['role' => 'admin']);
+        $message = $this->message($manager, [
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAE123',
+            'metadata' => ['to' => '5511999999999@s.whatsapp.net'],
+        ]);
+
+        $this->actingAs($manager)
+            ->delete(route('web.whatsapp.messages.destroy', [$message->contact, $message]))
+            ->assertRedirect()
+            ->assertSessionHas('error', DeleteWhatsAppMessage::FAILED_MESSAGE);
+
+        $this->assertNotSoftDeleted('whatsapp_messages', ['id' => $message->id]);
     }
 
     public function test_operator_can_delete_only_their_own_outbound_messages(): void

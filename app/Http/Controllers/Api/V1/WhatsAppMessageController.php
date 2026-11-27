@@ -96,9 +96,16 @@ class WhatsAppMessageController extends BaseApiController
 
         $remoteStatus = $action->handle($message, $request->user());
 
+        if ($remoteStatus === 'failed') {
+            return $this->errorResponse(
+                message: DeleteWhatsAppMessage::FAILED_MESSAGE,
+                data: ['remote_delete' => $remoteStatus],
+                status: 502,
+            );
+        }
+
         return $this->successResponse(message: match ($remoteStatus) {
             'deleted' => 'Mensagem apagada da conversa e do WhatsApp.',
-            'failed' => 'Mensagem apagada da conversa, mas não foi possível apagá-la no WhatsApp.',
             default => 'Mensagem apagada da conversa.',
         }, data: ['remote_delete' => $remoteStatus]);
     }

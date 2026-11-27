@@ -99,7 +99,12 @@ class WhatsAppConnectionTest extends TestCase
                 && $request['webhook']['url'] === 'http://host.test/api/v1/whatsapp/webhook'
                 && $request['webhook']['byEvents'] === false
                 && $request['webhook']['base64'] === false
-                && $request['webhook']['events'] === ['MESSAGES_UPSERT', 'MESSAGES_UPDATE']
+                && $request['webhook']['events'] === [
+                    'MESSAGES_UPSERT',
+                    'MESSAGES_UPDATE',
+                    'MESSAGES_DELETE',
+                    'MESSAGES_EDITED',
+                ]
                 && $request['webhook']['headers']['X-Evolution-Token'] === 'webhook-token';
         });
     }
