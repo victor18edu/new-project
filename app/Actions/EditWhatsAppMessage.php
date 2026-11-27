@@ -7,7 +7,10 @@ use App\Exceptions\WhatsAppRemoteEditFailed;
 use App\Models\User;
 use App\Models\WhatsAppMessage;
 use App\Support\WhatsAppMessageTarget;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 final class EditWhatsAppMessage
@@ -57,6 +60,25 @@ final class EditWhatsAppMessage
         try {
             $this->gateway->updateMessage($providerMessageId, $remoteJid, $number, $body);
         } catch (Throwable $exception) {
+            $context = [
+                'whatsapp_message_id' => $message->id,
+                'exception' => $exception::class,
+            ];
+
+            if ($exception instanceof RequestException) {
+                $response = $exception->response;
+
+                $context += [
+                    'status' => $response->status(),
+                    'url' => (string) $response->effectiveUri(),
+                    'body' => Str::limit($response->body(), 500),
+                ];
+            } else {
+                $context['error'] = $exception->getMessage();
+            }
+
+            Log::warning('Falha ao editar mensagem no WhatsApp.', $context);
+
             throw new WhatsAppRemoteEditFailed((int) $message->id, $exception);
         }
 

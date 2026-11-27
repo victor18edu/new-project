@@ -155,7 +155,11 @@
                         <li class="rounded-lg bg-slate-50 p-3 text-xs">
                             <p class="font-medium text-slate-700">
                                 {{ $revision->message?->contact?->name ?? 'Contato removido' }}
-                                @if ($revision->editor) · {{ $revision->editor->name }} @endif
+                                @if ($revision->editor)
+                                    · {{ $revision->editor->name }}
+                                @else
+                                    · editada no celular
+                                @endif
                                 · {{ $revision->created_at?->format('d/m/Y H:i') }}
                             </p>
                             <p class="mt-1 text-red-700"><span class="font-semibold">Original:</span> {{ $revision->old_body }}</p>
@@ -176,7 +180,11 @@
                         <li class="rounded-lg bg-slate-50 p-3 text-xs">
                             <p class="font-medium text-slate-700">
                                 {{ $deleted->contact?->name ?? 'Contato removido' }}
-                                @if ($deleted->deleter) · apagada por {{ $deleted->deleter->name }} @endif
+                                @if ($deleted->deleter)
+                                    · apagada por {{ $deleted->deleter->name }}
+                                @elseif (($deleted->metadata['remote_delete_source'] ?? null) === 'phone')
+                                    · apagada no celular
+                                @endif
                                 · {{ $deleted->deleted_at?->format('d/m/Y H:i') }}
                             </p>
                             <p class="mt-1 whitespace-pre-line text-slate-600">{{ $deleted->body }}</p>

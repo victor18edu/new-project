@@ -104,7 +104,12 @@ class EvolutionApiClientTest extends TestCase
             && data_get($request->data(), 'webhook.enabled') === true
             && data_get($request->data(), 'webhook.url') === 'https://crm.test/api/v1/whatsapp/webhook'
             && data_get($request->data(), 'webhook.headers.X-Evolution-Token') === 'webhook-token'
-            && data_get($request->data(), 'webhook.events') === ['MESSAGES_UPSERT', 'MESSAGES_UPDATE']);
+            && data_get($request->data(), 'webhook.events') === [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'MESSAGES_DELETE',
+                'MESSAGES_EDITED',
+            ]);
     }
 
     public function test_send_text_strips_the_plus_and_returns_provider_message_id(): void

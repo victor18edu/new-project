@@ -316,6 +316,155 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertSame(WhatsAppMessage::STATUS_READ, $message->fresh()->status);
     }
 
+    public function test_phone_delete_soft_deletes_without_removing_the_history(): void
+    {
+        $contact = $this->contactWithWhatsapp();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAEDEL',
+            'body' => 'Mensagem apagada no celular',
+        ]);
+
+        $this->postWebhook([
+            'event' => 'messages.delete',
+            'instance' => 'crm',
+            'data' => ['keys' => [['id' => 'BAEDEL']]],
+        ])->assertOk();
+
+        $this->assertSoftDeleted('whatsapp_messages', ['id' => $message->id]);
+        $this->assertSame('phone', $message->fresh()->metadata['remote_delete_source']);
+        $this->assertSame(1, WhatsAppMessage::withTrashed()->whereKey($message->id)->count());
+    }
+
+    public function test_revoke_update_from_phone_soft_deletes_the_original_message(): void
+    {
+        $contact = $this->contactWithWhatsapp();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAEREVOKE',
+            'body' => 'Mensagem revogada',
+        ]);
+
+        $this->postWebhook([
+            'event' => 'messages.update',
+            'instance' => 'crm',
+            'data' => [[
+                'key' => ['id' => 'BAEEVENT'],
+                'update' => [
+                    'message' => [
+                        'protocolMessage' => [
+                            'key' => ['id' => 'BAEREVOKE'],
+                            'type' => 'REVOKE',
+                        ],
+                    ],
+                ],
+            ]],
+        ])->assertOk();
+
+        $this->assertSoftDeleted('whatsapp_messages', ['id' => $message->id]);
+        $this->assertSame('phone', $message->fresh()->metadata['remote_delete_source']);
+    }
+
+    public function test_phone_edit_updates_the_body_and_keeps_the_original_as_revision(): void
+    {
+        $contact = $this->contactWithWhatsapp();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAEEDIT',
+            'body' => 'Texto original',
+        ]);
+
+        $this->postWebhook([
+            'event' => 'messages.edited',
+            'instance' => 'crm',
+            'data' => [
+                'key' => ['id' => 'BAEEDIT'],
+                'message' => [
+                    'protocolMessage' => [
+                        'key' => ['id' => 'BAEEDIT'],
+                        'type' => 'MESSAGE_EDIT',
+                        'editedMessage' => ['conversation' => 'Texto editado no celular'],
+                    ],
+                ],
+            ],
+        ])->assertOk();
+
+        $this->assertSame('Texto editado no celular', $message->fresh()->body);
+        $this->assertSame('phone', $message->fresh()->metadata['remote_edit_source']);
+        $this->assertDatabaseHas('whatsapp_message_revisions', [
+            'message_id' => $message->id,
+            'editor_id' => null,
+            'old_body' => 'Texto original',
+            'new_body' => 'Texto editado no celular',
+        ]);
+    }
+
+    public function test_phone_edit_does_not_overwrite_a_pending_local_edit(): void
+    {
+        $contact = $this->contactWithWhatsapp();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAEPENDING',
+            'body' => 'Texto original',
+            'metadata' => ['remote_edit' => 'failed'],
+        ]);
+
+        $this->postWebhook([
+            'event' => 'messages.edited',
+            'instance' => 'crm',
+            'data' => [
+                'key' => ['id' => 'BAEPENDING'],
+                'message' => [
+                    'protocolMessage' => [
+                        'key' => ['id' => 'BAEPENDING'],
+                        'type' => 'MESSAGE_EDIT',
+                        'editedMessage' => ['conversation' => 'Texto do celular'],
+                    ],
+                ],
+            ],
+        ])->assertOk();
+
+        $this->assertSame('Texto original', $message->fresh()->body);
+        $this->assertSame('failed', $message->fresh()->metadata['remote_edit']);
+        $this->assertDatabaseCount('whatsapp_message_revisions', 0);
+    }
+
+    public function test_encrypted_phone_edit_does_not_overwrite_the_crm_text(): void
+    {
+        $contact = $this->contactWithWhatsapp();
+        $message = WhatsAppMessage::create([
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIRECTION_OUTBOUND,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'provider_message_id' => 'BAEENCRYPTED',
+            'body' => 'Texto original',
+        ]);
+
+        $this->postWebhook([
+            'event' => 'messages.update',
+            'instance' => 'crm',
+            'data' => [[
+                'key' => ['id' => 'BAEENCRYPTED'],
+                'update' => [
+                    'message' => [
+                        'secretEncryptedMessage' => ['targetMessageKey' => ['id' => 'BAEENCRYPTED']],
+                    ],
+                ],
+            ]],
+        ])->assertOk();
+
+        $this->assertSame('Texto original', $message->fresh()->body);
+        $this->assertDatabaseCount('whatsapp_message_revisions', 0);
+    }
+
     public function test_incoming_message_from_unknown_number_creates_contact(): void
     {
         User::factory()->create(['role' => 'admin']);

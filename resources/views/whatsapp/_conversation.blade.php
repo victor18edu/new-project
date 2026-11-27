@@ -56,11 +56,22 @@
                             <p class="mt-1 text-xs opacity-70">
                                 {{ ($message->sent_at ?? $message->created_at)?->format('d/m/Y H:i') }}
                                 · {{ $statusLabels[$message->status] ?? $message->status }}
+                                @if ($message->status === 'failed' && filled(data_get($message->metadata, 'provider_status')))
+                                    · HTTP {{ data_get($message->metadata, 'provider_status') }}
+                                @endif
                                 @if ($message->direction === 'outbound' && $message->sender)
                                     · {{ $message->sender->name }}
                                 @endif
                                 @if ($message->edited_at)
-                                    · @if (($message->metadata['remote_edit'] ?? null) === 'edited') editado no WhatsApp @else editado localmente @endif
+                                    · @if (($message->metadata['remote_edit'] ?? null) === 'edited')
+                                        @if (($message->metadata['remote_edit_source'] ?? null) === 'phone')
+                                            editado no celular
+                                        @else
+                                            editado no WhatsApp
+                                        @endif
+                                    @else
+                                        editado localmente
+                                    @endif
                                     @if ($message->editor)
                                         por {{ $message->editor->name }}
                                     @endif

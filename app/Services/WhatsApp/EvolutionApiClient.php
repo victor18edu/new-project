@@ -60,7 +60,7 @@ class EvolutionApiClient
                 ],
                 'byEvents' => false,
                 'base64' => false,
-                'events' => ['MESSAGES_UPSERT', 'MESSAGES_UPDATE'],
+                'events' => ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'MESSAGES_DELETE', 'MESSAGES_EDITED'],
             ],
         ])->throw();
     }
